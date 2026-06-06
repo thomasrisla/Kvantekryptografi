@@ -1,0 +1,2928 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BB84 Kvantekryptografi Simulering</title>
+    <!-- Tailwind CSS til stilrent og responsivt design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons til visuelle ikoner -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- MathJax Konfiguration og Bibliotek til rendering af formler -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* Lys tema */
+        body { background: #ffffff !important; color: #1e293b !important; }
+        [class*="bg-slate-950"] { background-color: #f1f5f9 !important; }
+        [class*="bg-slate-900"] { background-color: #f8fafc !important; }
+        [class*="bg-slate-800"] { background-color: #ffffff !important; }
+        [class*="border-slate-700"], [class*="border-slate-800"] { border-color: #d1d5db !important; }
+        .text-slate-100, .text-slate-200 { color: #1e293b !important; }
+        .text-slate-300 { color: #374151 !important; }
+        .text-slate-400, .text-slate-500, .text-slate-600 { color: #6b7280 !important; }
+        input, select, textarea { color: #1e293b !important; }
+        thead.sticky, thead { background-color: #f9fafb !important; }
+        .divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]) { border-color: #e5e7eb !important; }
+        header { background: #ffffff !important; border-bottom: 1px solid #e5e7eb !important; }
+        footer { background: #f9fafb !important; border-top: 1px solid #e5e7eb !important; box-shadow: none !important; }
+
+        /* Accentfarver til hvid baggrund */
+        .text-teal-400, .text-teal-300 { color: #0f766e !important; }
+        .text-pink-400, .text-pink-300 { color: #be185d !important; }
+        .text-blue-400, .text-blue-300 { color: #1d4ed8 !important; }
+        .text-yellow-400, .text-yellow-300 { color: #a16207 !important; }
+        .text-emerald-400, .text-emerald-300 { color: #047857 !important; }
+        .text-indigo-300, .text-indigo-400 { color: #4338ca !important; }
+        .text-red-400, .text-red-300 { color: #b91c1c !important; }
+        .text-amber-200, .text-amber-400 { color: #b45309 !important; }
+
+        /* Dæmpede orange informationsbokse */
+        #status-box, .box-muted-orange {
+            background: #fff7ed !important;
+            border: 1px solid #fed7aa !important;
+            border-left: 4px solid #f97316 !important;
+        }
+        .box-muted-blue {
+            background: #eff6ff !important;
+            border: 1px solid #bfdbfe !important;
+        }
+        .box-muted-indigo {
+            background: #eef2ff !important;
+            border: 1px solid #c7d2fe !important;
+        }
+        .box-muted-teal {
+            background: #f0fdfa !important;
+            border: 1px solid #99f6e4 !important;
+        }
+        .card-section {
+            background: #ffffff !important;
+            border: 1px solid #e5e7eb !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .card-section-inner {
+            background: #fafafa !important;
+            border: 1px solid #e5e7eb !important;
+        }
+
+        /* Aktive trin-knapper og OTP-send (lyseblå, ikke mørk) */
+        .step-btn-active {
+            background: #dbeafe !important;
+            border-color: #93c5fd !important;
+            color: #1d4ed8 !important;
+        }
+        .step-btn-active:hover { background: #bfdbfe !important; }
+        .step-btn-active-yellow {
+            background: #fef9c3 !important;
+            border-color: #fde047 !important;
+            color: #a16207 !important;
+        }
+        .step-btn-active-yellow:hover { background: #fef08a !important; }
+        .step-btn-disabled {
+            background: #f1f5f9 !important;
+            border-color: #e5e7eb !important;
+            color: #9ca3af !important;
+        }
+        .btn-send-ciphertext {
+            background: #dbeafe !important;
+            border: 1px solid #93c5fd !important;
+            color: #1d4ed8 !important;
+        }
+        .btn-send-ciphertext:hover { background: #bfdbfe !important; }
+        .btn-send-ciphertext:disabled {
+            background: #f1f5f9 !important;
+            border-color: #e5e7eb !important;
+            color: #9ca3af !important;
+            cursor: not-allowed;
+        }
+
+        /* Foton-kanal animation */
+        #photon-channel {
+            position: relative;
+            background: linear-gradient(180deg, #f0f9ff 0%, #f8fafc 50%, #fdf4ff 100%);
+            border: 2px solid #cbd5e1;
+            border-radius: 1rem;
+            padding: 1.5rem 1rem 1rem;
+            overflow: hidden;
+        }
+        .channel-char {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.35rem;
+            z-index: 2;
+            transition: transform 0.3s ease;
+        }
+        .channel-char.active { transform: scale(1.08); }
+        .char-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: 3px solid;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .char-avatar svg { width: 56px; height: 56px; }
+        .channel-path-wrap {
+            position: relative;
+            flex: 1;
+            min-height: 90px;
+            margin: 0 0.5rem;
+        }
+        .channel-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #f9a8d4, #93c5fd);
+            border-radius: 2px;
+            transform: translateY(-50%);
+            opacity: 0.5;
+        }
+        .channel-line.eva-active {
+            background: linear-gradient(90deg, #f9a8d4 0%, #f9a8d4 42%, #fde047 50%, #93c5fd 58%, #93c5fd 100%);
+        }
+        .eva-station {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.2rem;
+            opacity: 0.25;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            z-index: 3;
+        }
+        .eva-station.visible { opacity: 1; transform: translate(-50%, -55%); }
+        .eva-station.intercepting { animation: eva-pulse 0.6s ease infinite alternate; }
+        @keyframes eva-pulse {
+            from { filter: drop-shadow(0 0 4px #fde047); }
+            to { filter: drop-shadow(0 0 12px #f59e0b); }
+        }
+        .photon-particle {
+            position: absolute;
+            top: 50%;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 4;
+            box-shadow: 0 0 10px currentColor;
+        }
+        .photon-particle.direct {
+            background: radial-gradient(circle, #fff 30%, #2dd4bf 70%);
+            color: #14b8a6;
+            animation: photon-direct 1.8s ease-in-out infinite;
+        }
+        .photon-particle.intercepted {
+            background: radial-gradient(circle, #fff 30%, #fbbf24 70%);
+            color: #f59e0b;
+            animation: photon-via-eva 2.4s ease-in-out infinite;
+        }
+        @keyframes photon-direct {
+            0%   { left: 8%; opacity: 0; }
+            10%  { opacity: 1; }
+            90%  { opacity: 1; }
+            100% { left: 92%; opacity: 0; }
+        }
+        @keyframes photon-via-eva {
+            0%   { left: 8%; opacity: 0; }
+            8%   { opacity: 1; }
+            40%  { left: 50%; opacity: 1; }
+            45%  { left: 50%; opacity: 0.3; transform: translate(-50%, -50%) scale(0.6); }
+            55%  { left: 50%; opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            92%  { left: 92%; opacity: 1; }
+            100% { left: 92%; opacity: 0; }
+        }
+        .channel-status {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.75rem;
+            min-height: 1.25rem;
+            font-weight: 600;
+        }
+        .channel-status.sending { color: #db2777; }
+        .channel-status.intercept { color: #d97706; }
+        .channel-status.receiving { color: #2563eb; }
+        .channel-status.bases { color: #4338ca; }
+        .channel-status.key-ok { color: #047857; }
+        .channel-status.key-warn { color: #b45309; }
+        .channel-status.key-err { color: #b91c1c; }
+
+        /* Trin-specifikke kanal-tilstande */
+        #photon-channel.mode-0 { background: linear-gradient(180deg, #fafafa 0%, #f8fafc 100%); }
+        #photon-channel.mode-1 { background: linear-gradient(180deg, #fdf2f8 0%, #f8fafc 100%); }
+        #photon-channel.mode-2 { background: linear-gradient(180deg, #fefce8 0%, #f8fafc 100%); }
+        #photon-channel.mode-3 { background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 100%); }
+        #photon-channel.mode-4 { background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%); }
+        #photon-channel.mode-5 { background: linear-gradient(180deg, #ecfdf5 0%, #f8fafc 100%); }
+
+        #photon-channel.mode-1 .channel-line { opacity: 0.8; background: linear-gradient(90deg, #f472b6, #fbcfe8); height: 5px; }
+        #photon-channel.mode-2 .channel-line.eva-active { opacity: 1; height: 5px; }
+        #photon-channel.mode-3 .channel-line { opacity: 0.7; background: linear-gradient(90deg, #f9a8d4, #60a5fa); }
+        #photon-channel.mode-4 .channel-line { opacity: 0.25; }
+        #photon-channel.mode-5 .channel-line { opacity: 0.2; }
+
+        .photon-particle.send {
+            background: radial-gradient(circle, #fff 30%, #ec4899 70%);
+            color: #db2777;
+            animation: photon-alice-send 1.6s ease-out infinite;
+        }
+        .photon-particle.eva-grab {
+            background: radial-gradient(circle, #fff 30%, #fbbf24 70%);
+            color: #d97706;
+            animation: photon-eva-grab 2s ease-in-out infinite;
+        }
+        .photon-particle.at-bob {
+            background: radial-gradient(circle, #fff 30%, #3b82f6 70%);
+            color: #2563eb;
+            animation: photon-bob-pulse 1.2s ease-in-out infinite alternate;
+        }
+        @keyframes photon-alice-send {
+            0%   { left: 10%; opacity: 0; transform: translate(-50%,-50%) scale(0.5); }
+            15%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+            85%  { left: 88%; opacity: 1; }
+            100% { left: 88%; opacity: 0; }
+        }
+        @keyframes photon-eva-grab {
+            0%   { left: 10%; opacity: 0; }
+            20%  { left: 30%; opacity: 1; }
+            45%  { left: 50%; opacity: 1; transform: translate(-50%,-50%) scale(1.3); }
+            55%  { left: 50%; opacity: 0.4; transform: translate(-50%,-50%) scale(0.7); }
+            75%  { left: 75%; opacity: 1; transform: translate(-50%,-50%) scale(1); }
+            100% { left: 90%; opacity: 0; }
+        }
+        @keyframes photon-bob-pulse {
+            from { transform: translate(-50%,-50%) scale(0.9); opacity: 0.7; }
+            to   { transform: translate(-50%,-50%) scale(1.2); opacity: 1; }
+        }
+
+        .bob-detector {
+            position: absolute;
+            right: 4%;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 2px solid #3b82f6;
+            background: #dbeafe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            z-index: 5;
+            animation: detector-blink 1s ease-in-out infinite alternate;
+        }
+        @keyframes detector-blink {
+            from { box-shadow: 0 0 4px #93c5fd; }
+            to   { box-shadow: 0 0 16px #3b82f6; }
+        }
+
+        .scene-bases, .scene-key { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+        .scene-bases.hidden, .scene-key.hidden, .bob-detector.hidden { display: none !important; }
+
+        .classical-arc {
+            position: absolute;
+            top: 8%;
+            left: 12%;
+            right: 12%;
+            height: 55%;
+            border: 2px dashed #6366f1;
+            border-bottom: none;
+            border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+            opacity: 0.7;
+        }
+        .classical-label {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            font-weight: 700;
+            color: #4338ca;
+            background: #eef2ff;
+            padding: 2px 8px;
+            border-radius: 99px;
+            border: 1px solid #c7d2fe;
+            white-space: nowrap;
+        }
+        .basis-packet {
+            position: absolute;
+            top: 22%;
+            font-size: 11px;
+            font-weight: 800;
+            font-family: ui-monospace, monospace;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 2px solid;
+        }
+        .basis-packet.from-alice {
+            color: #be185d;
+            background: #fce7f3;
+            border-color: #f9a8d4;
+            animation: packet-to-bob 2.5s ease-in-out infinite;
+            left: 18%;
+        }
+        .basis-packet.from-bob {
+            color: #1d4ed8;
+            background: #dbeafe;
+            border-color: #93c5fd;
+            animation: packet-to-alice 2.5s ease-in-out infinite;
+            right: 18%;
+        }
+        @keyframes packet-to-bob {
+            0%, 100% { left: 18%; opacity: 0.4; }
+            50%      { left: 42%; opacity: 1; }
+        }
+        @keyframes packet-to-alice {
+            0%, 100% { right: 18%; opacity: 0.4; }
+            50%      { right: 42%; opacity: 1; }
+        }
+        .eva-watching {
+            position: absolute;
+            bottom: 8%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 9px;
+            font-weight: 600;
+            color: #92400e;
+            background: #fef3c7;
+            padding: 2px 10px;
+            border-radius: 99px;
+            border: 1px solid #fcd34d;
+        }
+
+        #arc-compare-bits { position: absolute; inset: 0; }
+
+        .arc-compare-bit {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: ui-monospace, monospace;
+            font-size: 11px;
+            font-weight: 800;
+            border-radius: 5px;
+            border: 2px solid;
+            transform: translate(-50%, -50%);
+            z-index: 7;
+        }
+        .arc-compare-bit.alice-dir {
+            color: #be185d;
+            background: #fce7f3;
+            border-color: #f9a8d4;
+            animation: compare-arc-a2b 2.8s ease-in-out infinite;
+        }
+        .arc-compare-bit.bob-dir {
+            color: #1d4ed8;
+            background: #dbeafe;
+            border-color: #93c5fd;
+            animation: compare-arc-b2a 2.8s ease-in-out infinite;
+        }
+        .arc-compare-bit.match-ok {
+            box-shadow: 0 0 6px #6ee7b7;
+        }
+        .arc-compare-bit.match-err {
+            color: #b91c1c;
+            background: #fee2e2;
+            border-color: #fca5a5;
+            box-shadow: 0 0 8px #f87171;
+        }
+        @keyframes compare-arc-a2b {
+            0%   { left: 14%; top: 52%; opacity: 0; transform: translate(-50%,-50%) scale(0.6); }
+            8%   { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+            30%  { left: 30%; top: 20%; }
+            50%  { left: 50%; top: 9%; }
+            70%  { left: 70%; top: 20%; }
+            92%  { left: 86%; top: 52%; opacity: 1; }
+            100% { left: 86%; top: 52%; opacity: 0; }
+        }
+        @keyframes compare-arc-b2a {
+            0%   { left: 86%; top: 52%; opacity: 0; transform: translate(-50%,-50%) scale(0.6); }
+            8%   { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+            30%  { left: 70%; top: 20%; }
+            50%  { left: 50%; top: 9%; }
+            70%  { left: 30%; top: 20%; }
+            92%  { left: 14%; top: 52%; opacity: 1; }
+            100% { left: 14%; top: 52%; opacity: 0; }
+        }
+
+        .key-result-badge {
+            position: absolute;
+            bottom: 6%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 99px;
+            border: 2px solid;
+            white-space: nowrap;
+            z-index: 8;
+        }
+        .key-result-badge.ok {
+            color: #047857;
+            background: #ecfdf5;
+            border-color: #6ee7b7;
+        }
+        .key-result-badge.err {
+            color: #b91c1c;
+            background: #fef2f2;
+            border-color: #fca5a5;
+            animation: key-badge-pulse 1s ease-in-out infinite alternate;
+        }
+        .key-result-badge.warn {
+            color: #92400e;
+            background: #fffbeb;
+            border-color: #fcd34d;
+        }
+        @keyframes key-badge-pulse {
+            from { box-shadow: 0 0 4px #fca5a5; }
+            to   { box-shadow: 0 0 12px #ef4444; }
+        }
+        .key-result-icon { font-size: 14px; }
+
+        /* Fane 2: læselig ciphertext-farve på hvid baggrund */
+        #tab-content-otp .otp-cipher-text,
+        #tab-content-otp #alice-ciphertext-box,
+        #tab-content-otp #bob-ciphertext-box {
+            color: #78350f !important;
+            background: #fffbeb !important;
+            border-color: #fcd34d !important;
+        }
+        #tab-content-otp .otp-hint-text {
+            color: #92400e !important;
+        }
+        #tab-content-otp label .text-yellow-400,
+        #tab-content-otp .text-yellow-300,
+        #tab-content-otp .text-yellow-400,
+        #tab-content-otp .text-yellow-500 {
+            color: #78350f !important;
+        }
+        .q-field-ok { border: 2px solid #10b981 !important; background-color: #ecfdf5 !important; color: #047857 !important; }
+        .q-field-err { border: 2px solid #ef4444 !important; background-color: #fef2f2 !important; color: #b91c1c !important; box-shadow: 0 0 0 2px #fecaca !important; }
+        input.q-bit-ok, select.q-field-ok {
+            border: 2px solid #10b981 !important;
+            background-color: #ecfdf5 !important;
+            color: #047857 !important;
+            box-shadow: 0 0 0 1px #a7f3d0 !important;
+        }
+        input.q-bit-err, select.q-field-err {
+            border: 2px solid #ef4444 !important;
+            background-color: #fef2f2 !important;
+            color: #b91c1c !important;
+            box-shadow: 0 0 0 2px #fecaca !important;
+        }
+        input.q-bit-neutral, select.q-field-neutral {
+            border: 1px solid #d1d5db !important;
+            background-color: #ffffff !important;
+            color: #1e293b !important;
+        }
+    </style>
+</head>
+<body class="bg-white text-slate-800 min-h-screen font-sans tex2jax_process">
+
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 py-6 px-4 shadow-lg">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-teal-400 tracking-tight flex items-center gap-2">
+                    <i data-lucide="shield-alert" class="w-8 h-8 text-teal-400"></i>
+                    Kvantekryptografi (BB84)
+                </h1>
+                <p class="text-slate-400 mt-1">Interaktiv simulator & krypteringssandkasse til Fysik A</p>
+            </div>
+            <!-- Fanevælger (Tab Selector) -->
+            <div class="flex flex-wrap bg-slate-900/80 p-1.5 rounded-xl border border-slate-700 gap-1">
+                <button id="tab-btn-sim" onclick="switchTab('sim')" class="bg-teal-500 text-slate-950 font-bold px-4 py-2 rounded-lg transition-all text-sm flex items-center gap-2">
+                    <i data-lucide="cpu" class="w-4 h-4"></i> 1. BB84 Simulering
+                </button>
+                <button id="tab-btn-otp" onclick="switchTab('otp')" class="text-slate-400 hover:text-slate-200 font-semibold px-4 py-2 rounded-lg transition-all text-sm flex items-center gap-2">
+                    <i data-lucide="key-round" class="w-4 h-4"></i> 2. One-Time Pad Sandkasse
+                </button>
+                <button id="tab-btn-test" onclick="switchTab('test')" class="text-slate-400 hover:text-slate-200 font-semibold px-4 py-2 rounded-lg transition-all text-sm flex items-center gap-2">
+                    <i data-lucide="graduation-cap" class="w-4 h-4"></i> 3. Test din viden
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 space-y-12">
+
+        <!-- FANE 1: BB84 SIMULATOR -->
+        <div id="tab-content-sim" class="space-y-8">
+            <!-- Intro & Instruktioner -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 card-section rounded-2xl p-6 space-y-4">
+                    <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2 border-b border-slate-700 pb-2">
+                        <i data-lucide="info" class="text-teal-400"></i> Velkommen til BB84-Simuleringen
+                    </h2>
+                    <p class="text-slate-300 leading-relaxed">
+                        Kvantekryptografi udnytter kvantemekanikkens love til at skabe en <span class="text-teal-400 font-semibold">ubrydelig krypteringsnøgle</span> mellem afsenderen <span class="text-pink-400 font-semibold">Alice</span> og modtageren <span class="text-blue-400 font-semibold">Bob</span>.
+                    </p>
+                    <p class="text-slate-300 leading-relaxed">
+                        Her sender Alice enkeltfotoner polariseret i enten den <strong>rektilineære basis ($+$)</strong> eller den <strong>diagonale basis ($\times$)</strong>. Hvis spionen <span class="text-yellow-400 font-semibold">Eva (Eve)</span> forsøger at måle fotonerne på vejen, vil hun uundgåeligt ændre deres kvantetilstand på grund af <em>måleproblemet</em>. Dette afslører hende!
+                    </p>
+                    <div class="box-muted-indigo rounded-xl p-4 text-sm text-slate-300 leading-relaxed">
+                        <strong class="text-indigo-300">Offentlig vs. hemmelig information:</strong> I BB84-protokollen er det <span class="text-indigo-300 font-semibold">offentligt</span>, hvilke baser Alice og Bob har valgt, og om der er <em>basesammenfald</em> (match) — dette deles over en klassisk kanal, som Eva også kan læse. Selve <span class="text-pink-400 font-semibold">måleresultaterne</span> (bitværdierne) forbliver derimod <span class="text-teal-400 font-semibold">hemmelige</span>, indtil man aktivt sammenligner en udvalgt stikprøve for at opdage aflytning.
+                    </div>
+                    <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50">
+                        <h3 class="font-semibold text-slate-200 mb-2">Polarisations-kodning i BB84:</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-sm">
+                            <div class="bg-slate-800 p-2 rounded border border-slate-700">
+                                <span class="block text-xs text-slate-400">Basis $+$ (Bit $0$)</span>
+                                <span class="text-xl font-bold text-teal-400">0° ($\rightarrow$)</span>
+                            </div>
+                            <div class="bg-slate-800 p-2 rounded border border-slate-700">
+                                <span class="block text-xs text-slate-400">Basis $+$ (Bit $1$)</span>
+                                <span class="text-xl font-bold text-teal-400">90° ($\uparrow$)</span>
+                            </div>
+                            <div class="bg-slate-800 p-2 rounded border border-slate-700">
+                                <span class="block text-xs text-slate-400">Basis $\times$ (Bit $0$)</span>
+                                <span class="text-xl font-bold text-teal-400">45° ($\nearrow$)</span>
+                            </div>
+                            <div class="bg-slate-800 p-2 rounded border border-slate-700">
+                                <span class="block text-xs text-slate-400">Basis $\times$ (Bit $1$)</span>
+                                <span class="text-xl font-bold text-teal-400">135° ($\nwarrow$)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Styringspanel (Hovedindstillinger) -->
+                <div class="card-section rounded-2xl p-6 flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2 border-b border-slate-700 pb-2">
+                            <i data-lucide="sliders" class="text-teal-400"></i> Konfiguration
+                        </h2>
+                        
+                        <!-- Antal bit talfelt -->
+                        <div class="space-y-2">
+                            <label for="bitCount" class="text-slate-300 text-sm block">Antal sendte fotoner (mellem 8 og 200):</label>
+                            <input type="number" id="bitCount" min="8" max="200" value="12"
+                                   class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-teal-400 font-bold focus:outline-none focus:border-teal-500 text-center text-lg"
+                                   onchange="validateAndResetBitCount(this)">
+                        </div>
+
+                        <!-- Eva Toggle -->
+                        <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-700 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-300 text-sm font-semibold flex items-center gap-2">
+                                    <i data-lucide="eye" id="evaEyeIcon" class="text-slate-400"></i> 
+                                    Spionen Eva (Aktiv)
+                                </span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="evaToggle" class="sr-only peer" onchange="toggleEva()">
+                                    <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-200 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+                                </label>
+                            </div>
+                            <p class="text-xs text-slate-400 leading-relaxed" id="evaDesc">
+                                Eva er i øjeblikket inaktiv. Fotonerne sendes direkte fra Alice til Bob uden forstyrrelse.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-slate-700 space-y-2">
+                        <button onclick="startNewSimulation()" class="w-full bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-teal-500/10">
+                            <i data-lucide="refresh-cw" class="w-5 h-5"></i> Start Forfra
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SIMULATOR SEKTION -->
+            <section id="simulering" class="card-section rounded-2xl p-6 shadow-xl">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-700 pb-4 mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-teal-400 flex items-center gap-2">
+                            <i data-lucide="cpu"></i> Trinvis BB84 Proces
+                        </h2>
+                        <p class="text-sm text-slate-400 mt-1">Udfør protokollens trin ét ad gangen</p>
+                    </div>
+                    <!-- Trinindikatorer -->
+                    <div class="flex flex-wrap gap-2 text-xs">
+                        <span id="step1-badge" class="px-2.5 py-1 rounded-full font-semibold bg-teal-500 text-slate-950">1. Send</span>
+                        <span id="step2-badge" class="px-2.5 py-1 rounded-full font-semibold bg-slate-700 text-slate-400">2. Eva</span>
+                        <span id="step3-badge" class="px-2.5 py-1 rounded-full font-semibold bg-slate-700 text-slate-400">3. Bob</span>
+                        <span id="step4-badge" class="px-2.5 py-1 rounded-full font-semibold bg-slate-700 text-slate-400">4. Sammenlign</span>
+                        <span id="step5-badge" class="px-2.5 py-1 rounded-full font-semibold bg-slate-700 text-slate-400">5. Analysér</span>
+                    </div>
+                </div>
+
+                <!-- Trin knapper -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
+                    <button id="btn-step1" onclick="runStep1()" class="py-3 px-4 rounded-xl font-bold text-sm transition-all border border-pink-500/30 bg-pink-500/10 hover:bg-pink-500/20 text-pink-300 flex flex-col items-center gap-1">
+                        <span class="text-xs opacity-65">Trin 1</span>
+                        <span>1. Alice Sender Fotoner</span>
+                    </button>
+                    <button id="btn-step2" onclick="runStep2()" disabled class="py-3 px-4 rounded-xl font-bold text-sm transition-all border border-slate-700 bg-slate-800 text-slate-500 flex flex-col items-center gap-1">
+                        <span class="text-xs opacity-65">Trin 2</span>
+                        <span id="btn-step2-text">2. Eva Spionerer</span>
+                    </button>
+                    <button id="btn-step3" onclick="runStep3()" disabled class="py-3 px-4 rounded-xl font-bold text-sm transition-all border border-slate-700 bg-slate-800 text-slate-500 flex flex-col items-center gap-1">
+                        <span class="text-xs opacity-65">Trin 3</span>
+                        <span>3. Bob Måler Fotoner</span>
+                    </button>
+                    <button id="btn-step4" onclick="runStep4()" disabled class="py-3 px-4 rounded-xl font-bold text-sm transition-all border border-slate-700 bg-slate-800 text-slate-500 flex flex-col items-center gap-1">
+                        <span class="text-xs opacity-65">Trin 4</span>
+                        <span>4. Sammenlign Baser</span>
+                    </button>
+                    <button id="btn-step5" onclick="runStep5()" disabled class="py-3 px-4 rounded-xl font-bold text-sm transition-all border border-slate-700 bg-slate-800 text-slate-500 flex flex-col items-center gap-1">
+                        <span class="text-xs opacity-65">Trin 5</span>
+                        <span>5. Analysér Fejl & Nøgle</span>
+                    </button>
+                </div>
+
+                <!-- Visuel foton-kanal med karakterer -->
+                <div id="photon-channel" class="mb-8 tex2jax_ignore">
+                    <div class="flex items-center justify-between gap-2">
+                        <!-- Alice -->
+                        <div id="char-alice" class="channel-char">
+                            <div class="char-avatar border-pink-400">
+                                <svg viewBox="0 0 64 64" aria-hidden="true">
+                                    <circle cx="32" cy="22" r="14" fill="#fbcfe8"/>
+                                    <ellipse cx="32" cy="48" rx="18" ry="14" fill="#f472b6"/>
+                                    <circle cx="26" cy="20" r="2" fill="#831843"/><circle cx="38" cy="20" r="2" fill="#831843"/>
+                                    <path d="M28 26 Q32 30 36 26" stroke="#831843" fill="none" stroke-width="1.5"/>
+                                    <path d="M14 18 Q20 8 28 12" stroke="#9d174d" fill="none" stroke-width="3" stroke-linecap="round"/>
+                                    <path d="M50 18 Q44 8 36 12" stroke="#9d174d" fill="none" stroke-width="3" stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-bold text-pink-600">Alice</span>
+                            <span class="text-[10px] text-slate-500">Afsender</span>
+                        </div>
+
+                        <!-- Kanal -->
+                        <div class="channel-path-wrap flex-1">
+                            <div id="channel-line" class="channel-line"></div>
+                            <div id="photon-particles"></div>
+                            <div id="bob-detector" class="bob-detector hidden">📡</div>
+                            <!-- Trin 4: offentlig basis-udveksling -->
+                            <div id="scene-bases" class="scene-bases hidden">
+                                <div class="classical-arc"></div>
+                                <span class="classical-label">Offentlig klassisk kanal</span>
+                                <div class="basis-packet from-alice">+ × + ×</div>
+                                <div class="basis-packet from-bob">× + + ×</div>
+                                <div class="eva-watching">👁 Eva kan høre, hvad Alice og Bob siger</div>
+                            </div>
+                            <!-- Trin 5: bit-sammenligning langs klassisk bue -->
+                            <div id="scene-key" class="scene-key hidden">
+                                <div class="classical-arc"></div>
+                                <span class="classical-label" id="key-scene-label">Offentlig sammenligning af bits</span>
+                                <div id="arc-compare-bits"></div>
+                                <div class="eva-watching">👁 Eva kan høre, hvad Alice og Bob siger</div>
+                                <div id="key-result-badge" class="key-result-badge ok">
+                                    <span id="key-shield-icon" class="key-result-icon">🔑</span>
+                                    <span id="key-result-text">Nøgle genereret</span>
+                                </div>
+                            </div>
+                            <div id="eva-station" class="eva-station">
+                                <div class="char-avatar border-yellow-400" style="width:56px;height:56px;">
+                                    <svg viewBox="0 0 64 64" style="width:44px;height:44px;" aria-hidden="true">
+                                        <circle cx="32" cy="24" r="13" fill="#fef08a"/>
+                                        <ellipse cx="32" cy="48" rx="16" ry="13" fill="#eab308"/>
+                                        <circle cx="26" cy="22" r="5" fill="none" stroke="#713f12" stroke-width="2"/>
+                                        <circle cx="38" cy="22" r="5" fill="none" stroke="#713f12" stroke-width="2"/>
+                                        <line x1="31" y1="22" x2="33" y2="22" stroke="#713f12" stroke-width="2"/>
+                                        <path d="M20 16 L24 20 M44 16 L40 20" stroke="#713f12" stroke-width="2"/>
+                                    </svg>
+                                </div>
+                                <span class="text-[10px] font-bold text-yellow-700">Eva</span>
+                            </div>
+                        </div>
+
+                        <!-- Bob -->
+                        <div id="char-bob" class="channel-char">
+                            <div class="char-avatar border-blue-400">
+                                <svg viewBox="0 0 64 64" aria-hidden="true">
+                                    <circle cx="32" cy="22" r="14" fill="#bfdbfe"/>
+                                    <ellipse cx="32" cy="48" rx="18" ry="14" fill="#60a5fa"/>
+                                    <circle cx="26" cy="20" r="2" fill="#1e3a8a"/><circle cx="38" cy="20" r="2" fill="#1e3a8a"/>
+                                    <path d="M28 26 Q32 29 36 26" stroke="#1e3a8a" fill="none" stroke-width="1.5"/>
+                                    <rect x="22" y="10" width="20" height="6" rx="2" fill="#1e40af"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-bold text-blue-600">Bob</span>
+                            <span class="text-[10px] text-slate-500">Modtager</span>
+                        </div>
+                    </div>
+                    <p id="channel-status-text" class="channel-status">Tryk på trin 1 for at sende fotoner fra Alice til Bob</p>
+                </div>
+
+                <!-- Status besked -->
+                <div id="status-box" class="box-muted-orange p-5 rounded-xl mb-8 space-y-2">
+                    <h4 class="font-bold text-teal-400 flex items-center gap-2 text-base">
+                        <i data-lucide="message-square" class="w-5 h-5"></i>
+                        <span id="status-title">Klar til start!</span>
+                    </h4>
+                    <p id="status-desc" class="text-slate-300 text-sm leading-relaxed">
+                        Tryk på <strong class="text-pink-400">"1. Alice Sender Fotoner"</strong> for at starte processen.
+                    </p>
+                </div>
+
+                <!-- TABEL OVER FOTONER -->
+                <div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900/40 p-1 max-h-[500px] overflow-y-auto">
+                    <table class="w-full text-center text-sm border-collapse min-w-[850px]">
+                        <thead class="sticky top-0 bg-slate-800 z-10 shadow">
+                            <tr class="bg-slate-800 text-slate-300 border-b border-slate-700">
+                                <th class="py-3 px-2 font-medium">Foton nr.</th>
+                                <th class="py-3 px-2 font-medium text-pink-400 bg-pink-500/5">Alices Bit</th>
+                                <th class="py-3 px-2 font-medium text-pink-400 bg-pink-500/5">Alices Basis</th>
+                                <th class="py-3 px-2 font-medium text-pink-400 bg-pink-500/5">Polarisation</th>
+                                <th class="py-3 px-2 font-medium text-yellow-400 bg-yellow-500/5 eva-col opacity-30">Evas Basis</th>
+                                <th class="py-3 px-2 font-medium text-yellow-400 bg-yellow-500/5 eva-col opacity-30">Evas Måling</th>
+                                <th class="py-3 px-2 font-medium text-blue-400 bg-blue-500/5">Bobs Basis</th>
+                                <th class="py-3 px-2 font-medium text-blue-400 bg-blue-500/5">Bobs Måling</th>
+                                <th class="py-3 px-2 font-medium" title="Offentlig information — baserne deles åbent">Basesammenfald <span class="text-[9px] text-indigo-400 block font-normal">(offentlig)</span></th>
+                                <th class="py-3 px-2 font-medium text-teal-400" title="Hemmelig — måleresultatet offentliggøres ikke">Rå Nøgle <span class="text-[9px] text-teal-500/70 block font-normal">(hemmelig)</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="photon-table-body" class="divide-y divide-slate-800/60">
+                            <!-- Dynamisk indhold -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- RESULTATER -->
+                <div id="results-display" class="tex2jax_ignore mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 hidden">
+                    <div class="bg-slate-900/60 border border-slate-700 rounded-xl p-5 space-y-4">
+                        <h3 class="font-bold text-slate-100 flex items-center gap-2 border-b border-slate-800 pb-2">
+                            <i data-lucide="key" class="text-teal-400"></i> Den Genererede Kvantekey
+                        </h3>
+                        <div class="space-y-3">
+                            <div>
+                                <span class="text-xs text-slate-400 block mb-1">Alices rå nøgle (hvor baser matchede):</span>
+                                <div class="flex flex-wrap gap-1.5 font-mono text-lg font-bold tex2jax_ignore" id="alice-key-display"></div>
+                            </div>
+                            <div>
+                                <span class="text-xs text-slate-400 block mb-1">Bobs rå nøgle (hvor baser matchede):</span>
+                                <div class="flex flex-wrap gap-1.5 font-mono text-lg font-bold tex2jax_ignore" id="bob-key-display"></div>
+                            </div>
+                            <div id="key-string-display" class="hidden bg-slate-950/60 border border-teal-500/20 rounded-lg p-2.5 text-center">
+                                <span class="text-[10px] text-slate-500 block mb-1">Samlet nøgle (binær streng):</span>
+                                <span id="key-string-value" class="font-mono text-sm text-teal-300 tracking-widest break-all"></span>
+                            </div>
+                        </div>
+                        <div class="pt-2">
+                            <button onclick="transferKeyToSandbox()" class="w-full bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold py-2.5 px-4 rounded-lg transition-all text-xs flex items-center justify-center gap-2">
+                                <i data-lucide="arrow-right-left" class="w-4 h-4"></i> Overfør denne nøgle til Krypterings-sandkassen
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="security-card" class="border rounded-xl p-5 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-slate-100 flex items-center gap-2 border-b border-slate-800/40 pb-2 mb-3">
+                                <i data-lucide="shield-check" id="security-icon" class="text-emerald-400"></i> 
+                                Aflytningsdetektion
+                            </h3>
+                            <div class="grid grid-cols-2 gap-4 text-center mb-4">
+                                <div class="bg-slate-900/50 p-2.5 rounded border border-slate-800">
+                                    <span class="text-xs text-slate-400 block">Identiske baser</span>
+                                    <span id="matching-bases-count" class="text-xl font-bold text-slate-200">-</span>
+                                </div>
+                                <div class="bg-slate-900/50 p-2.5 rounded border border-slate-800">
+                                    <span class="text-xs text-slate-400 block">Afvigende bits</span>
+                                    <span id="bit-errors-count" class="text-xl font-bold">-</span>
+                                </div>
+                            </div>
+                            <div class="text-center bg-slate-900/50 py-3 rounded border border-slate-800 mb-4">
+                                <span class="text-xs text-slate-400 block">Kvantebit-fejlrate (QBER):</span>
+                                <span id="error-rate-val" class="text-3xl font-extrabold">-</span>
+                            </div>
+                        </div>
+                        <div id="security-conclusion" class="p-3.5 rounded-lg text-sm text-center font-medium"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TEORISEKTION -->
+            <section id="teori" class="card-section rounded-2xl p-6 md:p-8 space-y-8 scroll-mt-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-teal-400 flex items-center gap-2">
+                        <i data-lucide="book-open"></i> Fysisk Teori for Gymnasiet (Fysik A)
+                    </h2>
+                    <p class="text-sm text-slate-400 mt-1">Forstå fysikken bag BB84-protokollen</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                            <span class="bg-teal-400/10 text-teal-400 px-2.5 py-1 rounded text-xs font-mono">1</span>
+                            Kvantetilstande og Polarisation
+                        </h3>
+                        <p class="text-slate-300 text-sm leading-relaxed">
+                            I BB84-protokollen repræsenteres bits af enkeltfotoners polarisationstilstand. Vi arbejder med to komplementære baser:
+                        </p>
+                        <ul class="list-disc list-inside text-sm text-slate-300 space-y-2 pl-2">
+                            <li><strong>Rektilineær basis ($+$):</strong> Tilstande $|H\rangle$ ($0^\circ$, bit $0$) og $|V\rangle$ ($90^\circ$, bit $1$).</li>
+                            <li><strong>Diagonal basis ($\times$):</strong> Tilstande $|D_+\rangle$ ($45^\circ$, bit $0$) og $|D_-\rangle$ ($135^\circ$, bit $1$).</li>
+                        </ul>
+                        <p class="text-slate-300 text-sm leading-relaxed">
+                            Ifølge kvantemekanikkens formalisme kan en diagonal tilstand skrives som en ligelig <span class="text-teal-400">superposition</span> af de rektilineære tilstande:
+                        </p>
+                        <div class="bg-slate-900 p-3 rounded font-mono text-xs text-center border border-slate-700">
+                            $$|D_+\rangle = \frac{1}{\sqrt{2}}(|H\rangle + |V\rangle)$$
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-semibold text-slate-200 flex items-center gap-2">
+                            <span class="bg-teal-400/10 text-teal-400 px-2.5 py-1 rounded text-xs font-mono">2</span>
+                            Måleproblemet og Sammenfald
+                        </h3>
+                        <p class="text-slate-300 text-sm leading-relaxed">
+                            Hvis en foton er polariseret i den rektilineære basis ($+$) (f.eks. lodret $\uparrow$, som er bit $1$), og vi måler den i den diagonale basis ($\times$), kollapser dens bølgefunktion. 
+                        </p>
+                        <p class="text-slate-300 text-sm leading-relaxed">
+                            Måleren vil registrere enten diagonal (bit $0$) eller antidiagonal (bit $1$) med præcis <span class="text-teal-400 font-semibold">50 % sandsynlighed</span> for hver. Det oprindelige kendskab til, at det var en lodret foton, går tabt!
+                        </p>
+                        <div class="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-xl text-xs text-yellow-300 leading-relaxed">
+                            <strong>No-Cloning Theoremet:</strong> Det er fysisk umuligt at lave en perfekt kopi og derefter sende en uforstyrret foton videre. Hver aflytning af en ukendt kvantetilstand efterleder derfor uundgåeligt målbare spor!
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- FANE 2: ONE-TIME PAD SANDKASSE (DYNAMISK KRYPTERING) -->
+        <div id="tab-content-otp" class="space-y-8 hidden">
+            <!-- Introduktion til One-Time Pad -->
+            <section class="card-section rounded-2xl p-6 space-y-4">
+                <h2 class="text-2xl font-bold text-teal-400 flex items-center gap-2 border-b border-slate-700 pb-2">
+                    <i data-lucide="key-round"></i> Hvordan beskytter kvantenøglen vores data?
+                </h2>
+                <p class="text-slate-300 text-sm leading-relaxed">
+                    Når Alice og Bob har genereret en fælles tilfældig kvantenøgle via BB84, kan de kryptere enhver besked helt fejlfrit og matematisk ubrydeligt ved hjælp af <strong>One-Time Pad (OTP)</strong> kryptering. 
+                    Dette gøres ved at oversætte tekst to binære bits (en række af $0$'er og $1$'er) og derefter lægge kvantenøglen oveni ved hjælp af den logiske operation <span class="text-teal-400 font-mono">XOR</span> (eksklusivt ELLER).
+                </p>
+                <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 text-xs text-slate-300">
+                    <h4 class="font-bold text-slate-200 mb-1 flex items-center gap-1">
+                        <i data-lucide="table" class="w-4 h-4 text-teal-400"></i> Sandhedstabel for XOR (eksklusivt ELLER):
+                    </h4>
+                    <p class="mb-2">Når man XOR'er to bits, får man $0$ hvis de er ens, og $1$ hvis de er forskellige. Det smarte er, at hvis man XOR'er to gange, får man det oprindelige signal tilbage!</p>
+                    <div class="grid grid-cols-4 gap-2 text-center max-w-sm font-mono bg-slate-800 p-2 rounded border border-slate-700">
+                        <div>$0 \oplus 0 = 0$</div>
+                        <div>$1 \oplus 1 = 0$</div>
+                        <div>$0 \oplus 1 = 1$</div>
+                        <div>$1 \oplus 0 = 1$</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DET INTERAKTIVE CRYPTO-MILJØ -->
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <!-- ALICES SIDE (VENSTRE) -->
+                <div class="box-muted-orange border-2 border-pink-300 rounded-2xl p-6 space-y-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-4">
+                            <h3 class="text-xl font-bold text-pink-400 flex items-center gap-2">
+                                <i data-lucide="user"></i> Afsender: Alice
+                            </h3>
+                            <span class="bg-pink-500/10 text-pink-400 border border-pink-500/30 px-2.5 py-0.5 rounded-full text-xs font-semibold">Trin 1-5</span>
+                        </div>
+
+                        <!-- Trin 1: Indtast tekst -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-300">1. Skriv din hemmelige besked (ASCII-tekst):</label>
+                            <input type="text" id="alice-input-text" value="Passw0rd!" 
+                                   class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 font-mono focus:outline-none focus:border-pink-500 transition-all">
+                        </div>
+
+                        <!-- Trin 2: Konverter til binær -->
+                        <div class="mt-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-sm font-semibold text-slate-300">2. Konverter til binær form ($0$ og $1$):</label>
+                                <button onclick="aliceConvertToBinary()" class="bg-pink-500 hover:bg-pink-600 text-slate-950 text-xs font-bold py-1 px-3 rounded-lg transition-all flex items-center gap-1">
+                                    <i data-lucide="binary" class="w-3.5 h-3.5"></i> Konverter
+                                </button>
+                            </div>
+                            <div id="alice-binary-box" class="w-full min-h-[48px] bg-slate-900 border border-slate-700/60 rounded-lg p-3 font-mono text-xs text-pink-300 break-all select-all">
+                                Tryk på konverter...
+                            </div>
+                        </div>
+
+                        <!-- Trin 3: Indtast nøgle -->
+                        <div class="mt-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-sm font-semibold text-slate-300">3. Indtast din krypteringsnøgle (kvantenøgle):</label>
+                                <button onclick="alicePasteQuantumKey()" class="bg-teal-500 hover:bg-teal-600 text-slate-950 text-xs font-bold py-1 px-3 rounded-lg transition-all flex items-center gap-1">
+                                    <i data-lucide="copy" class="w-3.5 h-3.5"></i> Hent kvantenøgle fra BB84
+                                </button>
+                            </div>
+                            <input type="text" id="alice-key-input" placeholder="F.eks. 1101001" 
+                                   class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-teal-300 font-mono focus:outline-none focus:border-teal-500 text-sm tracking-widest">
+                            <p class="text-xs text-slate-400 italic">Bemærk: Hvis nøglen er kortere end beskeden, vil den automatisk blive gentaget (såkaldt cyklisk nøgle).</p>
+                        </div>
+
+                        <!-- Trin 4: Krypter -->
+                        <div class="mt-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-sm font-semibold text-slate-300">4. Krypter beskeden (XOR):</label>
+                                <button id="btn-alice-encrypt" onclick="aliceEncryptMessage()" disabled class="bg-slate-700 text-slate-500 text-xs font-bold py-1 px-3 rounded-lg transition-all cursor-not-allowed">
+                                    Krypter med XOR
+                                </button>
+                            </div>
+                            <div id="alice-ciphertext-box" class="otp-cipher-text w-full min-h-[48px] border rounded-lg p-3 font-mono text-xs break-all">
+                                Afventer kryptering...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trin 5: Send til Bob -->
+                    <div class="mt-6 pt-4 border-t border-slate-700">
+                        <button id="btn-alice-send" onclick="sendCiphertextToBob()" disabled class="btn-send-ciphertext w-full font-extrabold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2">
+                            <i data-lucide="send" class="w-5 h-5"></i> Send Krypteret Bitstrøm til Bob
+                        </button>
+                    </div>
+                </div>
+
+                <!-- BOBS SIDE (HØJRE) -->
+                <div class="box-muted-blue border-2 border-blue-300 rounded-2xl p-6 space-y-6 flex flex-col justify-between opacity-50 transition-all duration-300" id="bob-card">
+                    <div>
+                        <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-4">
+                            <h3 class="text-xl font-bold text-blue-400 flex items-center gap-2">
+                                <i data-lucide="user"></i> Modtager: Bob
+                            </h3>
+                            <span class="bg-blue-500/10 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-full text-xs font-semibold" id="bob-status-badge">Afventer Alice</span>
+                        </div>
+
+                        <!-- Modtaget Ciphertext -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-300">1. Modtaget krypteret bitstrøm (Ciphertext):</label>
+                            <div id="bob-ciphertext-box" class="otp-cipher-text w-full min-h-[48px] border rounded-lg p-3 font-mono text-xs break-all">
+                                Afventer signal...
+                            </div>
+                        </div>
+
+                        <!-- Bobs nøgle -->
+                        <div class="mt-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-sm font-semibold text-slate-300">2. Indtast Bobs dekrypteringsnøgle:</label>
+                                <button id="btn-bob-paste-key" onclick="bobPasteSharedKey()" disabled class="bg-slate-700 text-slate-500 text-xs font-bold py-1 px-3 rounded-lg transition-all cursor-not-allowed">
+                                    Nulstil til Alices nøgle
+                                </button>
+                            </div>
+                            <input type="text" id="bob-key-input" disabled placeholder="F.eks. 1101001" 
+                                   class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-teal-300 font-mono focus:outline-none focus:border-blue-500 text-sm tracking-widest cursor-not-allowed">
+                            <p class="text-xs otp-hint-text italic">Eksperimentér: Prøv at ændre en enkelt bit i Bobs nøgle for at simulere spionage/fejl, og se hvad der sker med teksten!</p>
+                        </div>
+
+                        <!-- Trin 3: Dekrypter (XOR) -->
+                        <div class="mt-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-sm font-semibold text-slate-300">3. Dekrypter bitstrøm (XOR):</label>
+                                <button id="btn-bob-decrypt" onclick="bobDecryptMessage()" disabled class="bg-slate-700 text-slate-500 text-xs font-bold py-1 px-3 rounded-lg transition-all cursor-not-allowed">
+                                    Dekrypter med XOR
+                                </button>
+                            </div>
+                            <div id="bob-decrypted-binary-box" class="w-full min-h-[48px] bg-slate-900 border border-slate-700/60 rounded-lg p-3 font-mono text-xs text-blue-300 break-all">
+                                Afventer dekryptering...
+                            </div>
+                        </div>
+
+                        <!-- Trin 4: Omsæt til tekst -->
+                        <div class="mt-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-sm font-semibold text-slate-300">4. Omsæt binær til læsbar ASCII-tekst:</label>
+                                <button id="btn-bob-to-text" onclick="bobConvertBinaryToText()" disabled class="bg-slate-700 text-slate-500 text-xs font-bold py-1 px-3 rounded-lg transition-all cursor-not-allowed">
+                                    Konverter til Tekst
+                                </button>
+                            </div>
+                            <div id="bob-final-text-box" class="w-full min-h-[56px] bg-slate-900 border border-slate-700 rounded-lg p-3 font-mono text-base font-bold text-emerald-400 break-all">
+                                -
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+        </div>
+
+        <!-- FANE 3: INTERAKTIV TEST & QUIZ -->
+        <div id="tab-content-test" class="space-y-8 hidden">
+            <section class="card-section rounded-2xl p-6 space-y-4">
+                <h2 class="text-2xl font-bold text-teal-400 flex items-center gap-2 border-b border-slate-700 pb-2">
+                    <i data-lucide="graduation-cap"></i> Interaktive Opgaver: Kvanteteknologi & Kryptering
+                </h2>
+                <p class="text-slate-300 text-sm leading-relaxed">
+                    Test din forståelse af BB84-protokollens fysiske målinger og One-Time Pad i praksis. Løs opgaverne herunder og kontroller dine svar.
+                </p>
+            </section>
+
+            <!-- OPGAVE 1 -->
+            <section class="card-section rounded-2xl p-6 space-y-6">
+                <div>
+                    <h3 class="text-lg font-bold text-pink-400">Opgave 1: Bestem kvantenøglen (Uden aflytning)</h3>
+                    <p class="text-sm text-slate-300 mt-1">
+                        Herunder ser du 10 fotonmålinger foretaget af Alice og Bob. Bestem for hver linje, om <strong>baserne</strong> matcher (Basesammenfald — $+$ vs. $\times$), hvad den rå nøglebit er (skriv "Kasseret" hvis baserne er forskellige), og indtast til sidst den samlede kvantenøgle.
+                    </p>
+                    <p class="text-xs text-slate-500 italic">
+                        Vigtigt: Basesammenfald handler <em>ikke</em> om om bitværdierne er ens — kun om Alice og Bob har valgt samme basis. Uden aflytning er bitværdien ved match lig med Bobs måling.
+                    </p>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900/40 p-1">
+                    <table class="w-full text-center text-xs border-collapse min-w-[600px]">
+                        <thead>
+                            <tr class="bg-slate-800 text-slate-300 border-b border-slate-700">
+                                <th class="py-2 px-1">Foton nr.</th>
+                                <th class="py-2 px-1 text-pink-400">Alices Bit</th>
+                                <th class="py-2 px-1 text-pink-400">Alices Basis</th>
+                                <th class="py-2 px-1 text-blue-400">Bobs Basis</th>
+                                <th class="py-2 px-1 text-blue-400">Bobs Måling</th>
+                                <th class="py-2 px-1 text-yellow-400">Basesammenfald</th>
+                                <th class="py-2 px-1 text-teal-400">Rå Nøglebit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Predefinerede 10 rækker til Opgave 1 -->
+                            <tr class="border-b border-slate-800/60">
+                                <td class="py-2 px-1 font-bold text-slate-400">1</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1">$+$</td>
+                                <td class="py-2 px-1">$+$</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1"><select id="q1-match-1" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="match">Match</option><option value="diff">Diff</option></select></td>
+                                <td class="py-2 px-1"><select id="q1-key-1" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="0">0</option><option value="1">1</option><option value="kasseret">Kasseret</option></select></td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60">
+                                <td class="py-2 px-1 font-bold text-slate-400">2</td>
+                                <td class="py-2 px-1 font-bold">0</td>
+                                <td class="py-2 px-1">$\times$</td>
+                                <td class="py-2 px-1">$+$</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1"><select id="q1-match-2" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="match">Match</option><option value="diff">Diff</option></select></td>
+                                <td class="py-2 px-1"><select id="q1-key-2" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="0">0</option><option value="1">1</option><option value="kasseret">Kasseret</option></select></td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60">
+                                <td class="py-2 px-1 font-bold text-slate-400">3</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1">$\times$</td>
+                                <td class="py-2 px-1">$\times$</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1"><select id="q1-match-3" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="match">Match</option><option value="diff">Diff</option></select></td>
+                                <td class="py-2 px-1"><select id="q1-key-3" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="0">0</option><option value="1">1</option><option value="kasseret">Kasseret</option></select></td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60">
+                                <td class="py-2 px-1 font-bold text-slate-400">4</td>
+                                <td class="py-2 px-1 font-bold">0</td>
+                                <td class="py-2 px-1">$+$</td>
+                                <td class="py-2 px-1">$\times$</td>
+                                <td class="py-2 px-1 font-bold">0</td>
+                                <td class="py-2 px-1"><select id="q1-match-4" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="match">Match</option><option value="diff">Diff</option></select></td>
+                                <td class="py-2 px-1"><select id="q1-key-4" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="0">0</option><option value="1">1</option><option value="kasseret">Kasseret</option></select></td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60">
+                                <td class="py-2 px-1 font-bold text-slate-400">5</td>
+                                <td class="py-2 px-1 font-bold">0</td>
+                                <td class="py-2 px-1">$+$</td>
+                                <td class="py-2 px-1">$+$</td>
+                                <td class="py-2 px-1 font-bold">0</td>
+                                <td class="py-2 px-1"><select id="q1-match-5" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="match">Match</option><option value="diff">Diff</option></select></td>
+                                <td class="py-2 px-1"><select id="q1-key-5" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="0">0</option><option value="1">1</option><option value="kasseret">Kasseret</option></select></td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60">
+                                <td class="py-2 px-1 font-bold text-slate-400">6</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1">$+$</td>
+                                <td class="py-2 px-1">$\times$</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1"><select id="q1-match-6" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="match">Match</option><option value="diff">Diff</option></select></td>
+                                <td class="py-2 px-1"><select id="q1-key-6" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="0">0</option><option value="1">1</option><option value="kasseret">Kasseret</option></select></td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60">
+                                <td class="py-2 px-1 font-bold text-slate-400">7</td>
+                                <td class="py-2 px-1 font-bold">0</td>
+                                <td class="py-2 px-1">$\times$</td>
+                                <td class="py-2 px-1">$\times$</td>
+                                <td class="py-2 px-1 font-bold">0</td>
+                                <td class="py-2 px-1"><select id="q1-match-7" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="match">Match</option><option value="diff">Diff</option></select></td>
+                                <td class="py-2 px-1"><select id="q1-key-7" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="0">0</option><option value="1">1</option><option value="kasseret">Kasseret</option></select></td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60">
+                                <td class="py-2 px-1 font-bold text-slate-400">8</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1">$+$</td>
+                                <td class="py-2 px-1">$+$</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1"><select id="q1-match-8" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="match">Match</option><option value="diff">Diff</option></select></td>
+                                <td class="py-2 px-1"><select id="q1-key-8" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="0">0</option><option value="1">1</option><option value="kasseret">Kasseret</option></select></td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60">
+                                <td class="py-2 px-1 font-bold text-slate-400">9</td>
+                                <td class="py-2 px-1 font-bold">0</td>
+                                <td class="py-2 px-1">$\times$</td>
+                                <td class="py-2 px-1">$+$</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1"><select id="q1-match-9" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="match">Match</option><option value="diff">Diff</option></select></td>
+                                <td class="py-2 px-1"><select id="q1-key-9" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="0">0</option><option value="1">1</option><option value="kasseret">Kasseret</option></select></td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60">
+                                <td class="py-2 px-1 font-bold text-slate-400">10</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1">$\times$</td>
+                                <td class="py-2 px-1">$\times$</td>
+                                <td class="py-2 px-1 font-bold">1</td>
+                                <td class="py-2 px-1"><select id="q1-match-10" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="match">Match</option><option value="diff">Diff</option></select></td>
+                                <td class="py-2 px-1"><select id="q1-key-10" class="bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs py-0.5 px-1"><option value="">Vælg...</option><option value="0">0</option><option value="1">1</option><option value="kasseret">Kasseret</option></select></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="space-y-3">
+                    <label class="block text-sm font-semibold text-slate-300">Indtast den endelige resulterende kvantenøgle (kun talværdier af de matchende bits i rækkefølge):</label>
+                    <input type="text" id="q1-final-key" placeholder="F.eks. 1010" class="w-full max-w-xs bg-slate-900 border border-slate-700 rounded p-2 text-teal-300 font-mono tracking-widest text-sm text-center">
+                    <button onclick="checkOpgave1()" class="bg-teal-500 hover:bg-teal-600 text-slate-950 font-bold py-2 px-4 rounded-lg transition-all text-sm block">Tjek svar (Opgave 1)</button>
+                    <div id="q1-feedback" class="p-3 rounded-lg text-sm font-semibold hidden"></div>
+                </div>
+            </section>
+
+            <!-- OPGAVE 2 -->
+            <section class="card-section rounded-2xl p-6 space-y-6">
+                <div class="border-b border-slate-700 pb-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-xl font-bold text-teal-400 flex items-center gap-2">
+                            <i data-lucide="key-round"></i> Opgave 2: Manuel One-Time Pad Udfordring
+                        </h3>
+                        <p class="text-sm text-slate-300 mt-1">
+                            Udfør en fuldstændig kryptering og dekryptering lokalt ved hjælp af binære XOR-beregninger.
+                        </p>
+                    </div>
+                    <button onclick="setupOpgave3()" class="bg-teal-500 hover:bg-teal-600 text-slate-950 text-xs font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-1.5 shadow-lg shadow-teal-500/15">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Ny udfordring (Nyt ord)
+                    </button>
+                </div>
+
+                <!-- 1. Bogstav til Binær Tabel -->
+                <div class="space-y-2">
+                    <h4 class="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
+                        <i data-lucide="table" class="text-pink-400 w-4 h-4"></i> Bogstav-til-Binær Tabel (8-bit ASCII):
+                    </h4>
+                    <div class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-9 gap-2 text-center text-xs font-mono">
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">A</span>: 01000001</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">B</span>: 01000010</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">E</span>: 01000101</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">F</span>: 01000110</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">H</span>: 01001000</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">I</span>: 01001001</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">L</span>: 01001100</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">M</span>: 01001101</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">N</span>: 01001110</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">O</span>: 01001111</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">P</span>: 01010000</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">S</span>: 01010011</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">T</span>: 01010100</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">U</span>: 01010101</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">V</span>: 01010110</div>
+                        <div class="bg-slate-900/60 p-1.5 rounded border border-slate-700/60"><span class="text-pink-400 font-bold">Y</span>: 01011001</div>
+                    </div>
+                </div>
+
+                <!-- Missionen -->
+                <div class="bg-slate-900/50 border border-slate-700 p-4 rounded-xl space-y-2">
+                    <span class="text-xs text-teal-400 font-bold uppercase tracking-wider">Aktiv Mission:</span>
+                    <h4 class="text-lg font-bold text-slate-100">
+                        Krypter ordet: "<span id="q3-target-word" class="text-pink-400">MY</span>" og send det sikkert til Bob!
+                    </h4>
+                    <p class="text-xs text-slate-400">
+                        Hvert bogstav fylder præcis 8 bits (i alt 16 bits). Svar udfyldes i de opstillede kolonner.
+                    </p>
+                </div>
+
+                <!-- Det interaktive workspace -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    
+                    <!-- ALICE ROLLEN (VENSTRE) -->
+                    <div class="box-muted-orange rounded-xl p-5 space-y-6">
+                        <h4 class="font-bold text-pink-400 border-b border-slate-700/50 pb-2 flex items-center gap-1.5">
+                            <i data-lucide="user"></i> Afsender: Alice
+                        </h4>
+
+                        <!-- 1. Binær oversættelse -->
+                        <div class="space-y-2">
+                            <span class="text-xs text-slate-200 block font-semibold">Trin 1: Oversæt ordet til en 16-bit streng vha. tabellen:</span>
+                            
+                            <!-- Letter indicators -->
+                            <div class="flex gap-1 font-mono text-center text-xs">
+                                <div id="q3-alice-header-L1" class="flex-1 bg-pink-500/10 border border-pink-500/30 rounded py-1 font-bold text-pink-400">Bogstav 1</div>
+                                <div id="q3-alice-header-L2" class="flex-1 bg-pink-500/10 border border-pink-500/30 rounded py-1 font-bold text-pink-400">Bogstav 2</div>
+                            </div>
+                            
+                            <!-- 16 inputs generated by JS -->
+                            <div class="flex justify-between gap-1" id="q3-alice-bin-inputs-container"></div>
+
+                            <div class="flex items-center gap-3 pt-1">
+                                <button onclick="checkOpgave3Trin1()" class="bg-pink-500 hover:bg-pink-600 text-slate-950 text-xs font-bold py-1.5 px-3 rounded transition-all">Tjek Trin 1</button>
+                                <div id="q3-t1-feedback" class="text-xs font-semibold hidden"></div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Manuel XOR Kryptering -->
+                        <div class="space-y-3 pt-4 border-t border-slate-800">
+                            <span class="text-xs text-slate-200 block font-semibold">Trin 2: Udregn og indtast den krypterede besked (XOR):</span>
+                            
+                            <div class="space-y-1 font-mono text-xs">
+                                <!-- Alice Binary (static preview aligned) -->
+                                <div class="flex gap-2 items-center">
+                                    <span class="w-16 text-[9px] text-pink-400 font-bold uppercase shrink-0">Alice Binær:</span>
+                                    <div class="flex-1 flex gap-1 justify-between" id="q3-alice-bin-static-row"></div>
+                                </div>
+                                <!-- Kvante-nøgle row -->
+                                <div class="flex gap-2 items-center">
+                                    <span class="w-16 text-[9px] text-teal-400 font-bold uppercase shrink-0">Kvantenøgle:</span>
+                                    <div class="flex-1 flex gap-1 justify-between font-bold text-teal-300" id="q3-alice-key-static-row"></div>
+                                </div>
+                                <!-- Ciphertext inputs row -->
+                                <div class="flex gap-2 items-center">
+                                    <span class="w-16 text-[9px] text-yellow-400 font-bold uppercase shrink-0">Ciphertext:</span>
+                                    <div class="flex-1 flex gap-1 justify-between" id="q3-alice-cipher-inputs-container"></div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-3 pt-1">
+                                <button onclick="checkOpgave3Trin2()" class="bg-pink-500 hover:bg-pink-600 text-slate-950 text-xs font-bold py-1.5 px-3 rounded transition-all">Tjek Trin 2</button>
+                                <div id="q3-t2-feedback" class="text-xs font-semibold hidden"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BOB ROLLEN (HØJRE) -->
+                    <div class="box-muted-blue rounded-xl p-5 space-y-6">
+                        <h4 class="font-bold text-blue-400 border-b border-slate-700/50 pb-2 flex items-center gap-1.5">
+                            <i data-lucide="user"></i> Modtager: Bob
+                        </h4>
+
+                        <!-- Trin 3 & 4: Dekryptering -->
+                        <div class="space-y-3">
+                            <span class="text-xs text-slate-200 block font-semibold">Trin 3 & 4: Dekrypter den modtagne bitstrøm (XOR):</span>
+                            
+                            <div class="space-y-1 font-mono text-xs">
+                                <!-- Received Ciphertext row -->
+                                <div class="flex gap-2 items-center">
+                                    <span class="w-16 text-[9px] text-yellow-400 font-bold uppercase shrink-0">Ciphertext:</span>
+                                    <div class="flex-1 flex gap-1 justify-between text-yellow-300" id="q3-bob-cipher-static-row"></div>
+                                </div>
+                                <!-- Kvante-nøgle row -->
+                                <div class="flex gap-2 items-center">
+                                    <span class="w-16 text-[9px] text-teal-400 font-bold uppercase shrink-0">Kvantenøgle:</span>
+                                    <div class="flex-1 flex gap-1 justify-between font-bold text-teal-300" id="q3-bob-key-static-row"></div>
+                                </div>
+                                <!-- Decrypted binary inputs row -->
+                                <div class="flex gap-2 items-center">
+                                    <span class="w-16 text-[9px] text-blue-400 font-bold uppercase shrink-0">Dekrypteret:</span>
+                                    <div class="flex-1 flex gap-1 justify-between" id="q3-bob-dec-inputs-container"></div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-3 pt-1">
+                                <button onclick="checkOpgave3Trin4()" class="bg-blue-500 hover:bg-blue-600 text-slate-950 text-xs font-bold py-1.5 px-3 rounded transition-all">Tjek Trin 4</button>
+                                <div id="q3-t4-feedback" class="text-xs font-semibold hidden"></div>
+                            </div>
+                        </div>
+
+                        <!-- Trin 5: Tilbagekonvertering -->
+                        <div class="space-y-3 pt-4 border-t border-slate-800">
+                            <span class="text-xs text-slate-200 block font-semibold">Trin 5: Oversæt binær bitstrøm tilbage til tekst (2 bogstaver):</span>
+                            
+                            <div class="flex gap-2">
+                                <input type="text" id="q3-bob-final-text" placeholder="F.eks. MY" maxlength="2"
+                                       class="w-32 bg-slate-950 border border-slate-700 rounded p-2 text-center text-sm font-mono text-emerald-400 font-bold uppercase tracking-widest focus:outline-none focus:border-blue-500">
+                                <button onclick="checkOpgave3Trin5()" class="bg-blue-500 hover:bg-blue-600 text-slate-950 text-xs font-bold py-1.5 px-4 rounded transition-all">Tjek Trin 5</button>
+                            </div>
+                            
+                            <div id="q3-t5-feedback" class="text-xs font-semibold hidden p-2 rounded"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- OPGAVE 3 -->
+            <section class="card-section rounded-2xl p-6 space-y-6">
+                <div>
+                    <h3 class="text-lg font-bold text-yellow-400">Opgave 3: Analysér spionage og aflytning (Med Eva aktiv)</h3>
+                    <p class="text-sm text-slate-300 mt-1">
+                        Spionen <strong class="text-yellow-400">Eva</strong> er aktiv. Tabellen viser 7 kombinationer af: om Alice og Bob har <em>samme eller forskellig</em> basis, om Eva måler i <em>samme eller forskellig</em> basis som Alice, og om Bob måler <em>samme eller modsat</em> bit som Alice (når baserne matcher).
+                    </p>
+                </div>
+
+                <!-- Alle 7 kombinationer -->
+                <div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900/40 p-1">
+                    <table class="w-full text-center text-xs border-collapse min-w-[780px]">
+                        <thead>
+                            <tr class="bg-slate-800 text-slate-300 border-b border-slate-700">
+                                <th class="py-2 px-1">Nr.</th>
+                                <th class="py-2 px-1 text-pink-400">Alice/Bob basis</th>
+                                <th class="py-2 px-1 text-yellow-400">Evas basis (vs. Alice)</th>
+                                <th class="py-2 px-1 text-blue-400">Bob vs. Alices bit</th>
+                                <th class="py-2 px-1">Konsekvens</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-slate-800/60 bg-emerald-950/10">
+                                <td class="py-2 px-1 font-bold text-slate-400">1</td>
+                                <td class="py-2 px-1 text-emerald-600 font-semibold">Ens</td>
+                                <td class="py-2 px-1">Samme</td>
+                                <td class="py-2 px-1">Samme</td>
+                                <td class="py-2 px-1 text-emerald-600">Ingen fejl — Eva ikke opdaget (forstyrrede ikke fotonen)</td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60 bg-emerald-950/10">
+                                <td class="py-2 px-1 font-bold text-slate-400">2</td>
+                                <td class="py-2 px-1 text-emerald-600 font-semibold">Ens</td>
+                                <td class="py-2 px-1 text-yellow-600 font-semibold">Forskellig</td>
+                                <td class="py-2 px-1">Samme</td>
+                                <td class="py-2 px-1 text-emerald-600">Ingen fejl — Eva ikke opdaget (Bob havde 50&nbsp;% chance)</td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60 bg-red-950/20">
+                                <td class="py-2 px-1 font-bold text-slate-400">3</td>
+                                <td class="py-2 px-1 text-emerald-600 font-semibold">Ens</td>
+                                <td class="py-2 px-1 text-yellow-600 font-semibold">Forskellig</td>
+                                <td class="py-2 px-1 text-red-500 font-semibold">Modsat</td>
+                                <td class="py-2 px-1 text-red-500 font-bold">Fejl — Eva opdaget! (sandsynlighed $\frac{1}{4}$ pr. sammenlignet bit)</td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60 opacity-70">
+                                <td class="py-2 px-1 font-bold text-slate-400">4</td>
+                                <td class="py-2 px-1 text-slate-500 font-semibold">Forskellig</td>
+                                <td class="py-2 px-1">Samme</td>
+                                <td class="py-2 px-1">Samme</td>
+                                <td class="py-2 px-1 text-slate-500">Kasseret — baser matcher ikke</td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60 opacity-70">
+                                <td class="py-2 px-1 font-bold text-slate-400">5</td>
+                                <td class="py-2 px-1 text-slate-500 font-semibold">Forskellig</td>
+                                <td class="py-2 px-1">Samme</td>
+                                <td class="py-2 px-1">Modsat</td>
+                                <td class="py-2 px-1 text-slate-500">Kasseret — baser matcher ikke</td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60 opacity-70">
+                                <td class="py-2 px-1 font-bold text-slate-400">6</td>
+                                <td class="py-2 px-1 text-slate-500 font-semibold">Forskellig</td>
+                                <td class="py-2 px-1">Forskellig</td>
+                                <td class="py-2 px-1">Samme</td>
+                                <td class="py-2 px-1 text-slate-500">Kasseret — baser matcher ikke</td>
+                            </tr>
+                            <tr class="border-b border-slate-800/60 opacity-70">
+                                <td class="py-2 px-1 font-bold text-slate-400">7</td>
+                                <td class="py-2 px-1 text-slate-500 font-semibold">Forskellig</td>
+                                <td class="py-2 px-1">Forskellig</td>
+                                <td class="py-2 px-1">Modsat</td>
+                                <td class="py-2 px-1 text-slate-500">Kasseret — baser matcher ikke</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-slate-500 italic">
+                    Kun række 1–3 er relevante for nøglen (Alice og Bob har samme basis). Række 3 er den eneste, hvor Eva med sikkerhed afsløres — men række 2 kan skjule hende ved et tilfælde.
+                </p>
+
+                <!-- Tillægsspørgsmål -->
+                <div class="space-y-4 pt-2">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-slate-200">Spørgsmål A: Hvorfor kan række 2 i tabellen (Eva forskellig basis, Bob samme bit) forekomme uden fejl, selvom Eva har forstyrret fotonen?</label>
+                        <select id="q2-ans-a" class="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-slate-200 text-sm focus:border-teal-500">
+                            <option value="">Vælg den mest korrekte forklaring...</option>
+                            <option value="forkert1">Eva brugte en speciel computer, der undgik at ændre polarisationen.</option>
+                            <option value="korrekt">Når Bobs basis (+) var forskellig fra Evas basis (x), kollapsede polarisationen tilbage til (+). Bob havde herefter 50% chance for at måle det rigtige (0), hvilket lykkedes ved et tilfælde.</option>
+                            <option value="forkert2">Fotoner i diagonal basis kollapser aldrig, når man måler dem i den lodrette basis.</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-slate-200">Spørgsmål B: Hvordan opdager Alice og Bob offentligt, at Eva har aflyttet og forstyrret deres kvantekommunikation?</label>
+                        <select id="q2-ans-b" class="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-slate-200 text-sm focus:border-teal-500">
+                            <option value="">Vælg den mest korrekte forklaring...</option>
+                            <option value="forkert1">De opdager det ved, at Internettet bliver langsommere, når Eva måler med sine krystaller.</option>
+                            <option value="korrekt">De sammenligner stikprøver af deres matchende nøglebits over en offentlig kanal. Hvis fejlraten (QBER) er væsentligt over 0% (teoretisk op til 25% pga. Eva), kasserer de nøglen.</option>
+                            <option value="forkert2">Eva skal aflevere fotonerne tilbage til Alice, hvilket afslører hende med det samme.</option>
+                        </select>
+                    </div>
+
+                    <button onclick="checkOpgave2()" class="bg-yellow-500 hover:bg-yellow-600 text-slate-950 font-bold py-2 px-4 rounded-lg transition-all text-sm block">Tjek svar (Opgave 3)</button>
+                    <div id="q2-feedback" class="p-3 rounded-lg text-sm font-semibold hidden"></div>
+                </div>
+            </section>
+
+            <!-- OPGAVE 4 -->
+            <section class="card-section rounded-2xl p-6 space-y-6">
+                <div>
+                    <h3 class="text-lg font-bold text-indigo-400 flex items-center gap-2">
+                        <i data-lucide="calculator"></i> Opgave 4: Sandsynlighed for at opdage Eva
+                    </h3>
+                    <p class="text-sm text-slate-300 mt-1 leading-relaxed">
+                        Efter at Alice og Bob har fundet deres matchende baser (offentligt), sammenligner de en udvalgt stikprøve af bitværdier og <strong>kasserer</strong> disse bits bagefter. 
+                        Herunder argumenterer du for sandsynlighederne og beregner, hvor mange bits der skal sammenlignes.
+                    </p>
+                </div>
+
+                <!-- Del A: Sandsynlighed for fejl ved én sammenlignet bit -->
+                <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-5 space-y-3">
+                    <h4 class="text-sm font-bold text-pink-400">Del A: Hvorfor er sandsynligheden for en fejl ved sammenligning af én bit $= \frac{1}{4}$?</h4>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Vi sammenligner kun bits, hvor Alice og Bob allerede har <strong>matchende baser</strong> — de kasserede fotoner tæller ikke med. 
+                        For at én sådan sammenlignet bit kan afsløre Eva (række 3 i opgave 3), skal disse to betingelser være opfyldt:
+                    </p>
+                    <ol class="list-decimal list-inside text-sm text-slate-300 space-y-2 pl-1">
+                        <li><strong>Eva har målt i en <em>forskellig</em> basis</strong> ($\frac{1}{2}$): Målte hun i samme basis som Alice, ville hun ikke forstyrre fotonen.</li>
+                        <li><strong>Bob måler modsat af Alice</strong> ($\frac{1}{2}$): Selv efter Evas forstyrrelse har Bob 50&nbsp;% chance for at ramme rigtigt — <em>fejl</em> opstår, når han måler modsat.</li>
+                    </ol>
+                    <div class="bg-slate-950/60 border border-pink-500/20 rounded-lg p-3 text-center font-mono text-sm text-pink-300">
+                        $$P(\text{fejl ved 1 sammenlignet bit}) = \frac{1}{2} \cdot \frac{1}{2} = \frac{1}{4}$$
+                    </div>
+                    <p class="text-xs text-slate-400 italic">
+                        Bemærk: Uden fejl ($\frac{3}{4}$) betyder det ikke nødvendigvis, at Eva ikke har været der — hun kan have haft chance (række 2)!
+                    </p>
+                </div>
+
+                <!-- Del B: (3/4)^n -->
+                <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-5 space-y-3">
+                    <h4 class="text-sm font-bold text-indigo-400">Del B: Sandsynligheden for at Eva undgår opdagelse</h4>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Hvis vi sammenligner $n$ uafhængige bits med matchende baser, og Eva har aflyttet, er sandsynligheden for <em>ingen</em> fejl i nogen af dem:
+                    </p>
+                    <div class="bg-slate-950/60 border border-indigo-500/20 rounded-lg p-3 text-center font-mono text-sm text-indigo-300">
+                        $$P(\text{Eva ikke opdaget}) = \left(\frac{3}{4}\right)^n$$
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Sandsynligheden for at vi <strong>opdager</strong> hende (mindst én fejl) er derfor:
+                    </p>
+                    <div class="bg-slate-950/60 border border-teal-500/20 rounded-lg p-3 text-center font-mono text-sm text-teal-300">
+                        $$P(\text{opdagelse}) = 1 - \left(\frac{3}{4}\right)^n$$
+                    </div>
+                </div>
+
+                <!-- Del C: Beregn n -->
+                <div class="bg-slate-900/50 border border-slate-700 rounded-xl p-5 space-y-4">
+                    <h4 class="text-sm font-bold text-teal-400">Del C: Hvor mange bits skal sammenlignes?</h4>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Beregn det mindste heltal $n$ (antal <em>sammenlignede</em> bits med matchende baser), så $1 - \left(\frac{3}{4}\right)^n$ overstiger den ønskede sikkerhed.
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-semibold text-slate-300 block">95&nbsp;% sikkerhed ($p = 0{,}95$):</label>
+                            <input type="number" id="q4-n-95" min="1" placeholder="n = ?" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-center font-mono text-teal-300 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-semibold text-slate-300 block">99&nbsp;% sikkerhed ($p = 0{,}99$):</label>
+                            <input type="number" id="q4-n-99" min="1" placeholder="n = ?" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-center font-mono text-teal-300 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-semibold text-slate-300 block">99,9&nbsp;% sikkerhed ($p = 0{,}999$):</label>
+                            <input type="number" id="q4-n-999" min="1" placeholder="n = ?" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-center font-mono text-teal-300 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500">
+                        Forventede svar (mindste heltal $n$, hvor $1 - \left(\frac{3}{4}\right)^n$ overstiger grænsen): 11, 17 og 25.
+                    </p>
+                </div>
+
+                <!-- Del D: Tjek-spørgsmål -->
+                <div class="space-y-3 pt-1">
+                    <label class="block text-sm font-semibold text-slate-200">
+                        Del D: Hvorfor kan man <em>ikke</em> bruge de bits til kryptering, der har været brugt til sammenligningen?
+                    </label>
+                    <select id="q4-ans-d" class="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-slate-200 text-sm focus:border-teal-500">
+                        <option value="">Vælg den mest korrekte forklaring...</option>
+                        <option value="forkert1">Fordi bits bliver ødelagt af selve sammenligningsprocessen i computeren.</option>
+                        <option value="forkert2">Fordi XOR-kryptering kun virker med bits, der er målt i den diagonale basis.</option>
+                        <option value="korrekt">Fordi bitværdierne er blevet offentligt sammenlignet over den klassiske kanal — Eva kender dem nu og kan derfor ikke bruges som hemmelig nøgle.</option>
+                        <option value="forkert3">Fordi man kun må bruge bits, hvor Eva ikke har været aktiv.</option>
+                    </select>
+                </div>
+
+                <button onclick="checkOpgave4()" class="bg-indigo-500 hover:bg-indigo-600 text-slate-950 font-bold py-2 px-4 rounded-lg transition-all text-sm block">Tjek svar (Opgave 4)</button>
+                <div id="q4-feedback" class="p-3 rounded-lg text-sm font-semibold hidden"></div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 border-t border-slate-800 py-8 text-center text-xs text-slate-500 mt-20">
+        <div class="max-w-7xl mx-auto px-4 space-y-2">
+            <p>Udviklet til Fysik A-niveau i det danske gymnasium.</p>
+            <p>&copy; 2026 • Simulering af Kvantekryptografi (BB84)</p>
+        </div>
+    </footer>
+
+    <!-- SIMULERING OG KRYPTERINGSLOGIK (JAVASCRIPT) -->
+    <script>
+        // --- 1. GLOBALE VARIABLER OG DATA ---
+        let bitCount = 12;
+        let evaActive = false;
+        let currentStep = 0; // 0: Start, 1: Alice Sendt, 2: Eva Målt, 3: Bob Målt, 4: Sifted, 5: Færdig
+        let photons = [];
+
+        const polarizations = {
+            '+': { '0': '→ (0°)', '1': '↑ (90°)' },
+            'x': { '0': '↗ (45°)', '1': '↖ (135°)' }
+        };
+
+        let sharedQuantumKey = "";
+
+        // ASCII-opslag til Opgave 3
+        const asciiOpslag = {
+            'A': '01000001', 'B': '01000010', 'E': '01000101', 'F': '01000110',
+            'H': '01001000', 'I': '01001001', 'L': '01001100', 'M': '01001101',
+            'N': '01001110', 'O': '01001111', 'P': '01010000', 'S': '01010011',
+            'T': '01010100', 'U': '01010101', 'V': '01010110', 'Y': '01011001'
+        };
+
+        const opgave3Ordliste = ["MY", "AL", "NY", "HE", "OS", "FA", "BY", "OM", "EV", "IL"];
+        let q3CurrentWord = "";
+        let q3TargetBinary = "";
+        let q3GeneratedKey = "";
+        let q3TargetCiphertext = "";
+
+        // --- 2. OPSTART OG HJÆLPEFUNKTIONER ---
+        window.onload = function() {
+            lucide.createIcons();
+            initOpgave1Fields();
+            resetSimulation();
+            setupOpgave3();
+        }
+
+        function typesetMath() {
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise().catch(function (err) {
+                    console.error('MathJax typeset failed: ', err);
+                });
+            }
+        }
+
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function validateAndResetBitCount(input) {
+            let val = parseInt(input.value);
+            if (isNaN(val) || val < 8) {
+                val = 8;
+            } else if (val > 200) {
+                val = 200;
+            }
+            input.value = val;
+            resetSimulation();
+        }
+
+        // Faneskift
+        function switchTab(tab) {
+            const simTab = document.getElementById('tab-content-sim');
+            const otpTab = document.getElementById('tab-content-otp');
+            const testTab = document.getElementById('tab-content-test');
+            
+            const btnSim = document.getElementById('tab-btn-sim');
+            const btnOtp = document.getElementById('tab-btn-otp');
+            const btnTest = document.getElementById('tab-btn-test');
+
+            simTab.classList.add('hidden');
+            otpTab.classList.add('hidden');
+            testTab.classList.add('hidden');
+
+            const normalBtnClass = "text-slate-400 hover:text-slate-200 font-semibold px-4 py-2 rounded-lg transition-all text-sm flex items-center gap-2";
+            const activeBtnClass = "bg-teal-500 text-slate-950 font-bold px-4 py-2 rounded-lg transition-all text-sm flex items-center gap-2";
+            
+            btnSim.className = normalBtnClass;
+            btnOtp.className = normalBtnClass;
+            btnTest.className = normalBtnClass;
+
+            if (tab === 'sim') {
+                simTab.classList.remove('hidden');
+                btnSim.className = activeBtnClass;
+            } else if (tab === 'otp') {
+                otpTab.classList.remove('hidden');
+                btnOtp.className = activeBtnClass;
+            } else if (tab === 'test') {
+                testTab.classList.remove('hidden');
+                btnTest.className = activeBtnClass;
+            }
+            typesetMath();
+        }
+
+        // --- 3. BB84 SIMULERINGSLOGIK ---
+        function toggleEva() {
+            const toggle = document.getElementById('evaToggle');
+            evaActive = toggle.checked;
+            
+            const icon = document.getElementById('evaEyeIcon');
+            const desc = document.getElementById('evaDesc');
+            
+            if (evaActive) {
+                icon.className = "text-yellow-400";
+                desc.innerHTML = '<strong class="text-yellow-400">Eva er AKTIV!</strong> Hun opsnapper fotonerne på vejen, måler dem i en tilfældig basis, og sender nye (forstyrrede) fotoner videre til Bob.';
+            } else {
+                icon.className = "text-slate-400";
+                desc.innerHTML = 'Eva er i øjeblikket inaktiv. Fotonerne sendes direkte fra Alice til Bob uden forstyrrelse.';
+            }
+            resetSimulation();
+        }
+
+        const Q1_SELECT_DEFAULT = "bg-white rounded text-slate-800 text-xs py-0.5 px-1 q-field-neutral";
+        const Q1_INPUT_DEFAULT = "w-full max-w-xs bg-white rounded p-2 text-teal-700 font-mono tracking-widest text-sm text-center q-field-neutral";
+
+        function initOpgave1Fields() {
+            for (let i = 1; i <= 10; i++) {
+                document.getElementById(`q1-match-${i}`).className = Q1_SELECT_DEFAULT;
+                document.getElementById(`q1-key-${i}`).className = Q1_SELECT_DEFAULT;
+            }
+            document.getElementById('q1-final-key').className = Q1_INPUT_DEFAULT;
+        }
+        const Q3_BIT_BASE = "w-6 h-8 rounded text-center text-xs font-mono font-bold focus:outline-none select-all transition-all q-bit-neutral";
+
+        function basisToMathJax(basis) {
+            return basis === '+' ? '+' : '\\times';
+        }
+
+        function xorBitStrings(a, b) {
+            let result = '';
+            for (let i = 0; i < Math.min(a.length, b.length); i++) {
+                result += (a[i] === b[i]) ? '0' : '1';
+            }
+            return result;
+        }
+
+        function getQ3AliceBinary() {
+            const inputs = document.getElementById('q3-alice-bin-inputs-container').getElementsByTagName('input');
+            let bin = '';
+            for (let i = 0; i < 16; i++) {
+                if (!inputs[i].value) return null;
+                bin += inputs[i].value;
+            }
+            return bin;
+        }
+
+        function getQ3CipherFromAlice() {
+            const inputs = document.getElementById('q3-alice-cipher-inputs-container').getElementsByTagName('input');
+            let cipher = '';
+            for (let i = 0; i < 16; i++) {
+                if (!inputs[i].value) return null;
+                cipher += inputs[i].value;
+            }
+            return cipher;
+        }
+
+        const OPGAVE1_DATA = [
+            { match: 'match', key: '1', aliceBit: '1', bobBit: '1' },
+            { match: 'diff',  key: 'kasseret', aliceBit: '0', bobBit: '1' },
+            { match: 'match', key: '1', aliceBit: '1', bobBit: '1' },
+            { match: 'diff',  key: 'kasseret', aliceBit: '0', bobBit: '0' },
+            { match: 'match', key: '0', aliceBit: '0', bobBit: '0' },
+            { match: 'diff',  key: 'kasseret', aliceBit: '1', bobBit: '1' },
+            { match: 'match', key: '0', aliceBit: '0', bobBit: '0' },
+            { match: 'match', key: '1', aliceBit: '1', bobBit: '1' },
+            { match: 'diff',  key: 'kasseret', aliceBit: '0', bobBit: '1' },
+            { match: 'match', key: '1', aliceBit: '1', bobBit: '1' }
+        ];
+
+        function updatePhotonChannel(step, opts = {}) {
+            const channel = document.getElementById('photon-channel');
+            const line = document.getElementById('channel-line');
+            const evaStation = document.getElementById('eva-station');
+            const particles = document.getElementById('photon-particles');
+            const bobDetector = document.getElementById('bob-detector');
+            const sceneBases = document.getElementById('scene-bases');
+            const sceneKey = document.getElementById('scene-key');
+            const statusText = document.getElementById('channel-status-text');
+            const charAlice = document.getElementById('char-alice');
+            const charBob = document.getElementById('char-bob');
+
+            channel.classList.remove('mode-0', 'mode-1', 'mode-2', 'mode-3', 'mode-4', 'mode-5');
+            channel.classList.add('mode-' + step);
+
+            particles.innerHTML = '';
+            charAlice.classList.remove('active');
+            charBob.classList.remove('active');
+            evaStation.classList.remove('visible', 'intercepting');
+            line.classList.remove('eva-active');
+            bobDetector.classList.add('hidden');
+            sceneBases.classList.add('hidden');
+            sceneKey.classList.add('hidden');
+
+            if (step === 0) {
+                statusText.className = 'channel-status';
+                statusText.textContent = evaActive
+                    ? 'Eva er klar — tryk trin 1 for at Alice sender fotoner'
+                    : 'Klar til start — tryk trin 1 for at Alice sender fotoner';
+                if (evaActive) {
+                    evaStation.classList.add('visible');
+                    line.classList.add('eva-active');
+                }
+                return;
+            }
+
+            if (step === 1) {
+                charAlice.classList.add('active');
+                if (evaActive) {
+                    evaStation.classList.add('visible');
+                    line.classList.add('eva-active');
+                }
+                const count = Math.min(bitCount, 4);
+                for (let i = 0; i < count; i++) {
+                    const p = document.createElement('div');
+                    p.className = 'photon-particle send';
+                    p.style.animationDelay = (i * 0.5) + 's';
+                    particles.appendChild(p);
+                }
+                statusText.className = 'channel-status sending';
+                statusText.textContent = `Trin 1: Alice sender ${bitCount} enkeltfotoner med tilfældig polarisation`;
+                return;
+            }
+
+            if (step === 2) {
+                if (evaActive) {
+                    evaStation.classList.add('visible', 'intercepting');
+                    line.classList.add('eva-active');
+                    for (let i = 0; i < 3; i++) {
+                        const p = document.createElement('div');
+                        p.className = 'photon-particle eva-grab';
+                        p.style.animationDelay = (i * 0.7) + 's';
+                        particles.appendChild(p);
+                    }
+                    statusText.className = 'channel-status intercept';
+                    statusText.textContent = 'Trin 2: Eva opsnapper fotonerne, måler i tilfældig basis og sender forstyrrede fotoner videre';
+                } else {
+                    for (let i = 0; i < 2; i++) {
+                        const p = document.createElement('div');
+                        p.className = 'photon-particle send';
+                        p.style.animationDelay = (i * 0.6) + 's';
+                        particles.appendChild(p);
+                    }
+                    statusText.className = 'channel-status';
+                    statusText.textContent = 'Trin 2: Eva er inaktiv — fotonerne passerer uforstyrret';
+                }
+                return;
+            }
+
+            if (step === 3) {
+                charBob.classList.add('active');
+                bobDetector.classList.remove('hidden');
+                if (evaActive) {
+                    evaStation.classList.add('visible');
+                    line.classList.add('eva-active');
+                }
+                [78, 84, 90].forEach((left, i) => {
+                    const p = document.createElement('div');
+                    p.className = 'photon-particle at-bob';
+                    p.style.left = left + '%';
+                    p.style.animationDelay = (i * 0.3) + 's';
+                    particles.appendChild(p);
+                });
+                statusText.className = 'channel-status receiving';
+                statusText.textContent = 'Trin 3: Bob måler fotonerne i sine egne tilfældige baser (måleresultatet er hemmeligt)';
+                return;
+            }
+
+            if (step === 4) {
+                charAlice.classList.add('active');
+                charBob.classList.add('active');
+                if (evaActive) evaStation.classList.add('visible');
+                sceneBases.classList.remove('hidden');
+                statusText.className = 'channel-status bases';
+                statusText.textContent = 'Trin 4: Alice og Bob udveksler baser offentligt — bit-målinger forbliver hemmelige';
+                return;
+            }
+
+            if (step === 5) {
+                charAlice.classList.add('active');
+                charBob.classList.add('active');
+                if (evaActive) evaStation.classList.add('visible');
+                sceneKey.classList.remove('hidden');
+
+                const matching = photons.filter(p => p.basesMatch);
+                const errors = opts.errors ?? matching.filter(p => p.aliceBit !== p.bobBit).length;
+                const arcBits = document.getElementById('arc-compare-bits');
+                const shield = document.getElementById('key-shield-icon');
+                const resultText = document.getElementById('key-result-text');
+                const badge = document.getElementById('key-result-badge');
+                const label = document.getElementById('key-scene-label');
+
+                arcBits.innerHTML = '';
+                const sample = matching.slice(0, 4);
+                sample.forEach((p, i) => {
+                    const isErr = p.aliceBit !== p.bobBit;
+                    const delay = i * 0.9;
+
+                    const bitA = document.createElement('div');
+                    bitA.className = 'arc-compare-bit alice-dir' + (isErr ? ' match-err' : ' match-ok');
+                    bitA.textContent = p.aliceBit;
+                    bitA.style.animationDelay = delay + 's';
+                    arcBits.appendChild(bitA);
+
+                    const bitB = document.createElement('div');
+                    bitB.className = 'arc-compare-bit bob-dir' + (isErr ? ' match-err' : ' match-ok');
+                    bitB.textContent = p.bobBit;
+                    bitB.style.animationDelay = (delay + 0.45) + 's';
+                    arcBits.appendChild(bitB);
+                });
+
+                badge.classList.remove('ok', 'err', 'warn');
+                const pct95 = (typeof DETECTION_BIT_THRESHOLDS !== 'undefined') ? DETECTION_BIT_THRESHOLDS.pct95 : 11;
+                if (errors > 0) {
+                    badge.classList.add('err');
+                    shield.textContent = '⚠️';
+                    resultText.textContent = `Aflytning! ${errors} afvigende bit(s) — nøgle kasseres`;
+                    label.textContent = 'Bits sammenlignes offentligt langs kanalen';
+                    statusText.className = 'channel-status key-err';
+                    statusText.textContent = 'Trin 5: Fejl opdaget via offentlig bit-sammenligning — nøglen er usikker';
+                } else if (evaActive && matching.length < pct95) {
+                    badge.classList.add('warn');
+                    shield.textContent = '🛡️';
+                    resultText.textContent = `Ingen fejl, men kun ${matching.length} sammenlignede bits`;
+                    label.textContent = 'Bits sammenlignes offentligt langs kanalen';
+                    statusText.className = 'channel-status key-warn';
+                    statusText.textContent = `Trin 5: Ingen fejl fundet — sammenlign mindst ca. ${pct95} matchende bits for 95 % sikkerhed`;
+                } else {
+                    badge.classList.add('ok');
+                    shield.textContent = '🔑';
+                    resultText.textContent = 'Sikker kvantenøgle genereret';
+                    label.textContent = 'Bits sammenlignes offentligt langs kanalen';
+                    statusText.className = 'channel-status key-ok';
+                    statusText.textContent = 'Trin 5: Sammenligning OK — hemmelig nøgle er klar til OTP';
+                }
+            }
+        }
+
+        function resetSimulation() {
+            bitCount = parseInt(document.getElementById('bitCount').value) || 12;
+            currentStep = 0;
+            photons = [];
+            
+            generateTablePlaceholder();
+            updateButtonsUI();
+            updatePhotonChannel(0);
+            
+            document.getElementById('results-display').classList.add('hidden');
+            
+            document.getElementById('status-title').textContent = "Klar til start!";
+            document.getElementById('status-title').className = "font-bold text-teal-400 flex items-center gap-2 text-base";
+            document.getElementById('status-desc').innerHTML = `Tryk på <strong class="text-pink-400">"1. Alice Sender Fotoner"</strong> for at lade Alice generere en tilfældig strøm af ${bitCount} bits og polarisere fotonerne i tilfældige baser ($+$ eller $\times$).`;
+            
+            updateEvaColumnsOpacity();
+            typesetMath();
+        }
+
+        function startNewSimulation() {
+            resetSimulation();
+            runStep1();
+        }
+
+        function updateEvaColumnsOpacity() {
+            const cols = document.querySelectorAll('.eva-col');
+            cols.forEach(col => {
+                if (evaActive) {
+                    col.classList.remove('opacity-30');
+                    col.classList.add('opacity-100');
+                } else {
+                    col.classList.add('opacity-30');
+                    col.classList.remove('opacity-100');
+                }
+            });
+        }
+
+        function generateTablePlaceholder() {
+            const tbody = document.getElementById('photon-table-body');
+            tbody.innerHTML = '';
+            
+            for (let i = 0; i < bitCount; i++) {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40 transition-colors border-b border-slate-800/60";
+                tr.innerHTML = `
+                    <td class="py-3 px-2 text-slate-400 font-mono font-bold">${i + 1}</td>
+                    <td class="py-3 px-2 font-mono text-slate-600">-</td>
+                    <td class="py-3 px-2 font-mono text-slate-600">-</td>
+                    <td class="py-3 px-2 font-mono text-slate-600">-</td>
+                    <td class="py-3 px-2 font-mono text-slate-600 eva-col ${evaActive ? '' : 'opacity-30'}">-</td>
+                    <td class="py-3 px-2 font-mono text-slate-600 eva-col ${evaActive ? '' : 'opacity-30'}">-</td>
+                    <td class="py-3 px-2 font-mono text-slate-600">-</td>
+                    <td class="py-3 px-2 font-mono text-slate-600">-</td>
+                    <td class="py-3 px-2 font-mono text-slate-600">-</td>
+                    <td class="py-3 px-2 font-mono text-slate-600">-</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        function updateButtonsUI() {
+            const b1 = document.getElementById('btn-step1');
+            const b2 = document.getElementById('btn-step2');
+            const b3 = document.getElementById('btn-step3');
+            const b4 = document.getElementById('btn-step4');
+            const b5 = document.getElementById('btn-step5');
+
+            const s1 = document.getElementById('step1-badge');
+            const s2 = document.getElementById('step2-badge');
+            const s3 = document.getElementById('step3-badge');
+            const s4 = document.getElementById('step4-badge');
+            const s5 = document.getElementById('step5-badge');
+
+            const stepBtnBase = "py-3 px-4 rounded-xl font-bold text-sm transition-all border flex flex-col items-center gap-1";
+            [b1, b2, b3, b4, b5].forEach(b => {
+                b.disabled = true;
+                b.className = stepBtnBase + " step-btn-disabled cursor-not-allowed";
+            });
+            [s1, s2, s3, s4, s5].forEach(s => {
+                s.className = "px-2.5 py-1 rounded-full font-semibold bg-slate-700 text-slate-400";
+            });
+
+            const btnEvaText = document.getElementById('btn-step2-text');
+            btnEvaText.textContent = evaActive ? "2. Eva Spionerer (Aktiv)" : "2. Eva Springes Over";
+
+            if (currentStep === 0) {
+                b1.disabled = false;
+                b1.className = stepBtnBase + " step-btn-active cursor-pointer";
+                s1.className = "px-2.5 py-1 rounded-full font-semibold bg-pink-500 text-slate-950 animate-pulse";
+            } else if (currentStep === 1) {
+                b2.disabled = false;
+                if (evaActive) {
+                    b2.className = stepBtnBase + " step-btn-active-yellow cursor-pointer";
+                    s2.className = "px-2.5 py-1 rounded-full font-semibold bg-yellow-500 text-slate-950 animate-pulse";
+                } else {
+                    b2.className = stepBtnBase + " step-btn-active cursor-pointer";
+                    s2.className = "px-2.5 py-1 rounded-full font-semibold bg-blue-400 text-slate-950";
+                }
+                s1.className = "px-2.5 py-1 rounded-full font-semibold bg-pink-900/40 text-pink-400";
+            } else if (currentStep === 2) {
+                b3.disabled = false;
+                b3.className = stepBtnBase + " step-btn-active cursor-pointer";
+                s3.className = "px-2.5 py-1 rounded-full font-semibold bg-blue-500 text-slate-950 animate-pulse";
+                
+                s1.className = "px-2.5 py-1 rounded-full font-semibold bg-pink-900/40 text-pink-400";
+                s2.className = "px-2.5 py-1 rounded-full font-semibold bg-yellow-900/40 text-yellow-400";
+            } else if (currentStep === 3) {
+                b4.disabled = false;
+                b4.className = stepBtnBase + " step-btn-active cursor-pointer";
+                s4.className = "px-2.5 py-1 rounded-full font-semibold bg-indigo-500 text-slate-950 animate-pulse";
+                
+                s1.className = "px-2.5 py-1 rounded-full font-semibold bg-pink-900/40 text-pink-400";
+                s2.className = "px-2.5 py-1 rounded-full font-semibold bg-yellow-900/40 text-yellow-400";
+                s3.className = "px-2.5 py-1 rounded-full font-semibold bg-blue-900/40 text-blue-400";
+            } else if (currentStep === 4) {
+                b5.disabled = false;
+                b5.className = stepBtnBase + " step-btn-active cursor-pointer";
+                s5.className = "px-2.5 py-1 rounded-full font-semibold bg-teal-500 text-slate-950 animate-pulse";
+                
+                s1.className = "px-2.5 py-1 rounded-full font-semibold bg-pink-900/40 text-pink-400";
+                s2.className = "px-2.5 py-1 rounded-full font-semibold bg-yellow-900/40 text-yellow-400";
+                s3.className = "px-2.5 py-1 rounded-full font-semibold bg-blue-900/40 text-blue-400";
+                s4.className = "px-2.5 py-1 rounded-full font-semibold bg-indigo-900/40 text-indigo-400";
+            } else if (currentStep === 5) {
+                s1.className = "px-2.5 py-1 rounded-full font-semibold bg-pink-900/40 text-pink-400";
+                s2.className = "px-2.5 py-1 rounded-full font-semibold bg-yellow-900/40 text-yellow-400";
+                s3.className = "px-2.5 py-1 rounded-full font-semibold bg-blue-900/40 text-blue-400";
+                s4.className = "px-2.5 py-1 rounded-full font-semibold bg-indigo-900/40 text-indigo-400";
+                s5.className = "px-2.5 py-1 rounded-full font-semibold bg-teal-900/40 text-teal-400";
+            }
+        }
+
+        // TRIN 1: ALICE SENDER
+        function runStep1() {
+            photons = [];
+            for (let i = 0; i < bitCount; i++) {
+                const aliceBit = Math.random() < 0.5 ? 0 : 1;
+                const aliceBasis = Math.random() < 0.5 ? '+' : 'x';
+                const polarization = polarizations[aliceBasis][aliceBit];
+                
+                photons.push({
+                    id: i + 1,
+                    aliceBit: aliceBit,
+                    aliceBasis: aliceBasis,
+                    alicePol: polarization,
+                    evaBasis: '-',
+                    evaBit: '-',
+                    evaPol: '-',
+                    bobBasis: '-',
+                    bobBit: '-',
+                    basesMatch: false,
+                    keyBit: '-'
+                });
+            }
+
+            currentStep = 1;
+            renderTable();
+            updateButtonsUI();
+            updatePhotonChannel(1);
+            
+            document.getElementById('status-title').textContent = "Trin 1 fuldført: Alice har sendt fotonerne!";
+            document.getElementById('status-title').className = "font-bold text-pink-400 flex items-center gap-2 text-base";
+            
+            let evaText = evaActive 
+                ? "Da Eva er AKTIV, skal vi se hende opsnappe dem i næste trin."
+                : "Da Eva er INAKTIV, springes hendes måling over. Klik på næste trin.";
+            
+            document.getElementById('status-desc').innerHTML = `
+                Alice har genereret ${bitCount} tilfældige bits og kodet dem ved hjælp af tilfældigt valgte baser: 
+                rektilineær ($+$) eller diagonal ($\\times$). Fotonerne sendes nu afsted.<br>
+                <strong class="text-yellow-400">${evaText}</strong>
+            `;
+            typesetMath();
+        }
+
+        // TRIN 2: EVA SPIONERER
+        function runStep2() {
+            photons.forEach(p => {
+                if (evaActive) {
+                    p.evaBasis = Math.random() < 0.5 ? '+' : 'x';
+                    if (p.evaBasis === p.aliceBasis) {
+                        p.evaBit = p.aliceBit;
+                    } else {
+                        p.evaBit = Math.random() < 0.5 ? 0 : 1;
+                    }
+                    p.evaPol = polarizations[p.evaBasis][p.evaBit];
+                } else {
+                    p.evaBasis = '-';
+                    p.evaBit = '-';
+                    p.evaPol = '-';
+                }
+            });
+
+            currentStep = 2;
+            renderTable();
+            updateButtonsUI();
+            updatePhotonChannel(2);
+
+            document.getElementById('status-title').textContent = evaActive 
+                ? "Trin 2 fuldført: Eva har aflyttet fotonerne!" 
+                : "Trin 2: Eva blev sprunget over";
+            
+            if (evaActive) {
+                document.getElementById('status-title').className = "font-bold text-yellow-500 flex items-center gap-2 text-base";
+                document.getElementById('status-desc').innerHTML = `
+                    Eva har målt fotonerne i sine egne tilfældige baser. Hvor hendes baser var forkerte, 
+                    har hun uundgåeligt ændret fotonernes polarisation og sendt <span class="text-yellow-400 font-bold">forstyrrede fotoner</span> videre to Bob. 
+                    Klik på <strong class="text-blue-400">"3. Bob Måler Fotoner"</strong>.
+                `;
+            } else {
+                document.getElementById('status-title').className = "font-bold text-slate-400 flex items-center gap-2 text-base";
+                document.getElementById('status-desc').innerHTML = `
+                    Fotonerne flyver uforstyrret videre direkte to Bob. 
+                    Klik på <strong class="text-blue-400">"3. Bob Måler Fotoner"</strong> for at lade Bob måle dem.
+                `;
+            }
+            typesetMath();
+        }
+
+        // TRIN 3: BOB MÅLER
+        function runStep3() {
+            photons.forEach(p => {
+                p.bobBasis = Math.random() < 0.5 ? '+' : 'x';
+                
+                const sourceBasis = (evaActive && p.evaBasis !== '-') ? p.evaBasis : p.aliceBasis;
+                const sourceBit = (evaActive && p.evaBit !== '-') ? p.evaBit : p.aliceBit;
+
+                if (p.bobBasis === sourceBasis) {
+                    p.bobBit = sourceBit;
+                } else {
+                    p.bobBit = Math.random() < 0.5 ? 0 : 1;
+                }
+            });
+
+            currentStep = 3;
+            renderTable();
+            updateButtonsUI();
+            updatePhotonChannel(3);
+
+            document.getElementById('status-title').textContent = "Trin 3 fuldført: Bob har målt fotonerne!";
+            document.getElementById('status-title').className = "font-bold text-blue-400 flex items-center gap-2 text-base";
+            document.getElementById('status-desc').innerHTML = `
+                Bob har foretaget sine målinger ved hjælp af tilfældigt valgte baser. <br>
+                Nu skal de to par sammenligne deres valg af baser. Klik på <strong class="text-indigo-400">"4. Sammenlign Baser"</strong>.
+            `;
+            typesetMath();
+        }
+
+        // TRIN 4: SAMMENLIGN BASER
+        function runStep4() {
+            photons.forEach(p => {
+                if (p.aliceBasis === p.bobBasis) {
+                    p.basesMatch = true;
+                    p.keyBit = p.bobBit;
+                } else {
+                    p.basesMatch = false;
+                    p.keyBit = 'Kasseret';
+                }
+            });
+
+            currentStep = 4;
+            renderTable();
+            updateButtonsUI();
+            updatePhotonChannel(4);
+
+            document.getElementById('status-title').textContent = "Trin 4 fuldført: Baserne er blevet sammenlignet!";
+            document.getElementById('status-title').className = "font-bold text-indigo-400 flex items-center gap-2 text-base";
+            document.getElementById('status-desc').innerHTML = `
+                Alice og Bob har <span class="text-indigo-300 font-semibold">offentligt</span> delt deres valgte baser over en klassisk kanal — Eva kan også se, om der er match eller ej. 
+                Selve bit-målingerne er stadig <span class="text-teal-400 font-semibold">hemmelige</span>. 
+                De har <span class="text-red-400 font-semibold">kasseret</span> alle målinger, hvor baserne ikke matchede.
+                Klik på <strong class="text-teal-400">"5. Analysér Fejl & Nøgle"</strong> for at tjekke for aflytning!
+            `;
+            typesetMath();
+        }
+
+        // Minimum antal sammenlignings-bits for given opdagelsessandsynlighed (1-(3/4)^n)
+        const DETECTION_BIT_THRESHOLDS = {
+            pct95: 11,
+            pct99: 17,
+            pct999: 25
+        };
+
+        function populateKeyDisplay(matchingPhotons) {
+            const aliceKeyDiv = document.getElementById('alice-key-display');
+            const bobKeyDiv = document.getElementById('bob-key-display');
+            const keyStringDisplay = document.getElementById('key-string-display');
+            const keyStringValue = document.getElementById('key-string-value');
+
+            aliceKeyDiv.innerHTML = '';
+            bobKeyDiv.innerHTML = '';
+
+            if (matchingPhotons.length === 0) {
+                aliceKeyDiv.innerHTML = '<span class="text-xs text-red-400 italic">Ingen baser matchede! Prøv igen.</span>';
+                bobKeyDiv.innerHTML = '<span class="text-xs text-red-400 italic">Ingen baser matchede! Prøv igen.</span>';
+                keyStringDisplay.classList.add('hidden');
+                keyStringValue.textContent = '';
+                return;
+            }
+
+            matchingPhotons.forEach(p => {
+                const aliceSpan = document.createElement('span');
+                const bobSpan = document.createElement('span');
+                const hasError = p.aliceBit !== p.bobBit;
+                const baseClass = "w-8 h-8 flex items-center justify-center rounded-lg border font-mono text-sm ";
+
+                if (hasError) {
+                    aliceSpan.className = baseClass + "bg-red-500/20 border-red-500 text-red-300";
+                    bobSpan.className = baseClass + "bg-red-500/20 border-red-500 text-red-300";
+                } else {
+                    aliceSpan.className = baseClass + "bg-teal-500/10 border-teal-500/40 text-teal-300";
+                    bobSpan.className = baseClass + "bg-teal-500/10 border-teal-500/40 text-teal-300";
+                }
+
+                aliceSpan.textContent = p.aliceBit;
+                bobSpan.textContent = p.bobBit;
+
+                aliceKeyDiv.appendChild(aliceSpan);
+                bobKeyDiv.appendChild(bobSpan);
+            });
+
+            keyStringValue.textContent = matchingPhotons.map(p => p.bobBit).join('');
+            keyStringDisplay.classList.remove('hidden');
+        }
+
+        // TRIN 5: ANALYSER & GENERER NØGLE
+        function runStep5() {
+            currentStep = 5;
+
+            const matchingPhotons = photons.filter(p => p.basesMatch);
+            const totalMatching = matchingPhotons.length;
+
+            let errors = 0;
+            matchingPhotons.forEach(p => {
+                if (p.aliceBit !== p.bobBit) {
+                    errors++;
+                }
+            });
+
+            const errorRate = totalMatching > 0 ? ((errors / totalMatching) * 100).toFixed(1) : 0;
+
+            renderTable();
+            updateButtonsUI();
+
+            sharedQuantumKey = matchingPhotons.filter(p => p.aliceBit === p.bobBit).map(p => p.bobBit).join('');
+
+            document.getElementById('results-display').classList.remove('hidden');
+            populateKeyDisplay(matchingPhotons);
+            updatePhotonChannel(5, { errors });
+
+            document.getElementById('matching-bases-count').textContent = totalMatching;
+
+            const errCountSpan = document.getElementById('bit-errors-count');
+            errCountSpan.textContent = errors;
+
+            const errRateSpan = document.getElementById('error-rate-val');
+            errRateSpan.textContent = errorRate + " %";
+
+            const secIcon = document.getElementById('security-icon');
+            const secCard = document.getElementById('security-card');
+            const secConclusion = document.getElementById('security-conclusion');
+
+            if (errors > 0) {
+                errCountSpan.className = "text-xl font-bold text-red-400";
+                errRateSpan.className = "text-3xl font-extrabold text-red-400";
+                secCard.className = "border-2 border-red-500 bg-red-950/20 rounded-xl p-5 flex flex-col justify-between";
+                secIcon.className = "text-red-400 w-6 h-6";
+                secIcon.setAttribute('data-lucide', 'shield-alert');
+
+                secConclusion.className = "p-3.5 rounded-lg text-sm text-center font-bold bg-red-500/20 text-red-300 border border-red-500/30";
+                secConclusion.innerHTML = `
+                    ⚠️ AFLYTNING OPDAGET! <br>
+                    Fejlraten er på ${errorRate} %. Evas målinger kollapsede bølgefunktionerne, hvilket skabte fejl hos Bob. Nøglen er usikker og KASSERES!
+                `;
+            } else if (evaActive && totalMatching < DETECTION_BIT_THRESHOLDS.pct95) {
+                errCountSpan.className = "text-xl font-bold text-amber-400";
+                errRateSpan.className = "text-3xl font-extrabold text-amber-400";
+                secCard.className = "border-2 border-amber-500 bg-amber-950/20 rounded-xl p-5 flex flex-col justify-between";
+                secIcon.className = "text-amber-400 w-6 h-6";
+                secIcon.setAttribute('data-lucide', 'shield-question');
+
+                const needed = DETECTION_BIT_THRESHOLDS.pct95;
+                secConclusion.className = "p-3.5 rounded-lg text-sm text-center font-bold bg-amber-500/20 text-amber-200 border border-amber-500/30";
+                secConclusion.innerHTML = `
+                    ⚠️ INGEN FEJL FUNDET — MEN FOR FÅ SAMMENLIGNEDE BITS!<br>
+                    Eva var aktiv, og I fandt ingen afvigende bits. Det betyder <em>ikke</em>, at hun ikke har aflyttet — med kun ${totalMatching} sammenlignede bits (matchende baser) er sandsynligheden for at opdage hende langt under 95&nbsp;%.<br>
+                    <span class="text-amber-100">Sammenlign mindst ca. ${needed} matchende bits</span> for at kunne være ca. 95&nbsp;% sikker på, at der ikke har været aflytning ($1 - \\left(\\frac{3}{4}\\right)^n$). Se Opgave 4 for beregningen.
+                `;
+            } else {
+                errCountSpan.className = "text-xl font-bold text-emerald-400";
+                errRateSpan.className = "text-3xl font-extrabold text-emerald-400";
+                secCard.className = "border-2 border-emerald-500 bg-emerald-950/20 rounded-xl p-5 flex flex-col justify-between";
+                secIcon.className = "text-emerald-400 w-6 h-6";
+                secIcon.setAttribute('data-lucide', 'shield-check');
+
+                secConclusion.className = "p-3.5 rounded-lg text-sm text-center font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+                secConclusion.innerHTML = `
+                    ✅ SIKKER NØGLE GENERERET!<br>
+                    Ingen aflytning opdaget (Fejlrate: 0 %). I kan nu trygt bruge denne kvantenøgle til One-Time Pad kryptering i næste fane!
+                `;
+            }
+
+            document.getElementById('status-title').textContent = "Simulering fuldført!";
+            document.getElementById('status-title').className = "font-bold text-teal-400 flex items-center gap-2 text-base";
+            document.getElementById('status-desc').innerHTML = `
+                Prøv at gå til <strong class="text-teal-400">"2. One-Time Pad Sandkasse"</strong> øverst til højre for at afprøve den genererede nøgle i praksis!
+            `;
+
+            lucide.createIcons();
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise().then(function () {
+                    populateKeyDisplay(matchingPhotons);
+                    lucide.createIcons();
+                }).catch(function (err) {
+                    console.error('MathJax typeset failed: ', err);
+                });
+            }
+            document.getElementById('results-display').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('photon-table-body');
+            tbody.innerHTML = '';
+
+            photons.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40 transition-colors border-b border-slate-800/60";
+
+                const aBit = currentStep >= 1 ? `<span class="font-bold text-pink-400">${p.aliceBit}</span>` : '-';
+                const aBasis = currentStep >= 1 ? `<span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700 font-mono text-pink-300 font-bold">$${basisToMathJax(p.aliceBasis)}$</span>` : '-';
+                const aPol = currentStep >= 1 ? `<span class="text-xs text-pink-400">${p.alicePol}</span>` : '-';
+
+                let eBasis = '-';
+                let eBit = '-';
+                if (currentStep >= 2) {
+                    if (evaActive) {
+                        eBasis = `<span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700 font-mono text-yellow-300 font-bold">$${basisToMathJax(p.evaBasis)}$</span>`;
+                        eBit = `<span class="font-bold text-yellow-400">${p.evaBit}</span>`;
+                    } else {
+                        eBasis = `<span class="text-slate-500 italic text-xs">Udenom</span>`;
+                        eBit = `<span class="text-slate-500 italic text-xs">Udenom</span>`;
+                    }
+                }
+
+                const bBasis = currentStep >= 3 ? `<span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700 font-mono text-blue-300 font-bold">$${basisToMathJax(p.bobBasis)}$</span>` : '-';
+                const bBit = currentStep >= 3 ? `<span class="font-bold text-blue-400">${p.bobBit}</span>` : '-';
+
+                let match = '-';
+                let keyBit = '-';
+
+                if (currentStep >= 4) {
+                    if (p.basesMatch) {
+                        match = `<span class="text-emerald-400 font-bold text-xs flex items-center justify-center gap-1"><i data-lucide="check" class="w-4 h-4"></i> Match ($${basisToMathJax(p.aliceBasis)}$)</span>`;
+                        if (currentStep >= 5) {
+                            const isErr = p.aliceBit !== p.bobBit;
+                            if (isErr) {
+                                keyBit = `<span class="bg-red-500/30 text-red-300 border border-red-500/50 font-mono font-bold px-2 py-0.5 rounded animate-pulse">Fejl (${p.bobBit})</span>`;
+                            } else {
+                                keyBit = `<span class="bg-teal-500 text-slate-950 font-mono font-bold px-2.5 py-0.5 rounded">${p.bobBit}</span>`;
+                            }
+                        } else {
+                            keyBit = `<span class="text-slate-400 font-semibold font-mono">Gemt</span>`;
+                        }
+                    } else {
+                        match = `<span class="text-red-400 font-semibold text-xs flex items-center justify-center gap-1"><i data-lucide="x" class="w-4 h-4"></i> Diff</span>`;
+                        keyBit = `<span class="text-slate-500 italic text-xs">Kasseret</span>`;
+                    }
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-2 text-slate-400 font-mono font-bold">${p.id}</td>
+                    <td class="py-3 px-2 bg-pink-500/5">${aBit}</td>
+                    <td class="py-3 px-2 bg-pink-500/5">${aBasis}</td>
+                    <td class="py-3 px-2 bg-pink-500/5 font-mono">${aPol}</td>
+                    <td class="py-3 px-2 bg-yellow-500/5 eva-col">${eBasis}</td>
+                    <td class="py-3 px-2 bg-yellow-500/5 eva-col">${eBit}</td>
+                    <td class="py-3 px-2 bg-blue-500/5">${bBasis}</td>
+                    <td class="py-3 px-2 bg-blue-500/5">${bBit}</td>
+                    <td class="py-3 px-2">${match}</td>
+                    <td class="py-3 px-2 font-mono">${keyBit}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateEvaColumnsOpacity();
+            lucide.createIcons();
+            typesetMath();
+        }
+
+        function transferKeyToSandbox() {
+            if (!sharedQuantumKey) {
+                alert("Generer venligst en nøgle først vha. trin 5 i BB84 simuleringen.");
+                return;
+            }
+            document.getElementById('alice-key-input').value = sharedQuantumKey;
+            switchTab('otp');
+            aliceConvertToBinary();
+        }
+
+
+        // --- 4. ONE-TIME PAD SANDKASSELOGIK (FANE 2) ---
+        let aliceBinaryString = "";
+        let aliceCiphertext = "";
+
+        function textToBinary(text) {
+            return text.split('').map(char => {
+                return char.charCodeAt(0).toString(2).padStart(8, '0');
+            }).join(' ');
+        }
+
+        function binaryToText(binStr) {
+            const cleanBin = binStr.replace(/\s+/g, '');
+            let text = '';
+            for (let i = 0; i < cleanBin.length; i += 8) {
+                const chunk = cleanBin.substr(i, 8);
+                if (chunk.length === 8) {
+                    text += String.fromCharCode(parseInt(chunk, 2));
+                }
+            }
+            return text;
+        }
+
+        function xorStrings(binStr, keyStr) {
+            const cleanBin = binStr.replace(/\s+/g, '');
+            const cleanKey = keyStr.replace(/[^01]/g, '');
+            
+            if (cleanKey.length === 0) return "";
+            
+            let result = "";
+            for (let i = 0; i < cleanBin.length; i++) {
+                const b = cleanBin[i];
+                const k = cleanKey[i % cleanKey.length];
+                result += (b === k) ? '0' : '1';
+            }
+            return result;
+        }
+
+        function aliceConvertToBinary() {
+            const txt = document.getElementById('alice-input-text').value;
+            if (!txt) {
+                document.getElementById('alice-binary-box').textContent = "Fejl: Indtast tekst!";
+                return;
+            }
+            aliceBinaryString = textToBinary(txt);
+            document.getElementById('alice-binary-box').textContent = aliceBinaryString;
+            
+            const encryptBtn = document.getElementById('btn-alice-encrypt');
+            encryptBtn.disabled = false;
+            encryptBtn.className = "bg-pink-500 hover:bg-pink-600 text-slate-950 text-xs font-bold py-1 px-3 rounded-lg transition-all cursor-pointer";
+        }
+
+        function alicePasteQuantumKey() {
+            if (!sharedQuantumKey) {
+                document.getElementById('alice-key-input').value = "";
+                document.getElementById('alice-key-input').placeholder = "Ingen kvantenøgle fundet! Kør BB84 først.";
+                return;
+            }
+            document.getElementById('alice-key-input').value = sharedQuantumKey;
+        }
+
+        function aliceEncryptMessage() {
+            const key = document.getElementById('alice-key-input').value;
+            if (!key || !/^[01]+$/.test(key)) {
+                alert("Fejl: Indtast en gyldig binær nøgle (kun 0 og 1)!");
+                return;
+            }
+            if (!aliceBinaryString) {
+                alert("Konverter venligst teksten til binær først!");
+                return;
+            }
+
+            aliceCiphertext = xorStrings(aliceBinaryString, key);
+            document.getElementById('alice-ciphertext-box').textContent = aliceCiphertext;
+
+            const sendBtn = document.getElementById('btn-alice-send');
+            sendBtn.disabled = false;
+            sendBtn.className = "btn-send-ciphertext w-full font-extrabold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm";
+        }
+
+        function sendCiphertextToBob() {
+            if (!aliceCiphertext) return;
+
+            const bobCard = document.getElementById('bob-card');
+            bobCard.classList.remove('opacity-50');
+
+            document.getElementById('bob-ciphertext-box').textContent = aliceCiphertext;
+            document.getElementById('bob-key-input').value = document.getElementById('alice-key-input').value;
+
+            document.getElementById('bob-key-input').disabled = false;
+            document.getElementById('bob-key-input').classList.remove('cursor-not-allowed');
+            
+            const pasteKeyBtn = document.getElementById('btn-bob-paste-key');
+            pasteKeyBtn.disabled = false;
+            pasteKeyBtn.className = "bg-blue-500 hover:bg-blue-600 text-slate-950 text-xs font-bold py-1 px-3 rounded-lg transition-all cursor-pointer";
+
+            const decryptBtn = document.getElementById('btn-bob-decrypt');
+            decryptBtn.disabled = false;
+            decryptBtn.className = "bg-blue-500 hover:bg-blue-600 text-slate-950 text-xs font-bold py-1 px-3 rounded-lg transition-all cursor-pointer";
+
+            document.getElementById('bob-status-badge').textContent = "Modtaget kryptering";
+            document.getElementById('bob-status-badge').className = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full text-xs font-semibold";
+
+            lucide.createIcons();
+            bobCard.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function bobPasteSharedKey() {
+            document.getElementById('bob-key-input').value = document.getElementById('alice-key-input').value;
+        }
+
+        // Dekryptering i fane 2
+        function bobDecryptMessage() {
+            const ciphertext = document.getElementById('bob-ciphertext-box').textContent;
+            const bobKey = document.getElementById('bob-key-input').value;
+
+            if (!bobKey || !/^[01]+$/.test(bobKey)) {
+                alert("Fejl: Bob skal have en gyldig binær dekrypteringsnøgle!");
+                return;
+            }
+
+            const decryptedBin = xorStrings(ciphertext, bobKey);
+            
+            let formattedBin = "";
+            for (let i = 0; i < decryptedBin.length; i++) {
+                if (i > 0 && i % 8 === 0) formattedBin += " ";
+                formattedBin += decryptedBin[i];
+            }
+
+            document.getElementById('bob-decrypted-binary-box').textContent = formattedBin;
+
+            const toTextBtn = document.getElementById('btn-bob-to-text');
+            toTextBtn.disabled = false;
+            toTextBtn.className = "bg-blue-500 hover:bg-blue-600 text-slate-950 text-xs font-bold py-1 px-3 rounded-lg transition-all cursor-pointer";
+        }
+
+        function bobConvertBinaryToText() {
+            const decryptedBin = document.getElementById('bob-decrypted-binary-box').textContent;
+            if (!decryptedBin || decryptedBin.includes("Afventer")) return;
+
+            const finalText = binaryToText(decryptedBin);
+            const textBox = document.getElementById('bob-final-text-box');
+            textBox.textContent = finalText;
+
+            const originalText = document.getElementById('alice-input-text').value;
+            if (finalText === originalText) {
+                textBox.className = "w-full min-h-[56px] bg-emerald-950/30 border-2 border-emerald-500 rounded-lg p-3 font-mono text-lg font-bold text-emerald-400 animate-bounce";
+            } else {
+                textBox.className = "w-full min-h-[56px] bg-red-950/30 border-2 border-red-500 rounded-lg p-3 font-mono text-lg font-bold text-red-400";
+            }
+        }
+
+        // --- 5. INTERAKTIV TEST LOGIK (FANE 3) ---
+
+        function markQ1Field(el, isCorrect) {
+            el.classList.remove('q-field-ok', 'q-field-err', 'q-field-neutral');
+            el.classList.add(isCorrect ? 'q-field-ok' : 'q-field-err');
+        }
+
+        function markBitInputs(containerId, expectedStr) {
+            const inputs = document.getElementById(containerId).getElementsByTagName('input');
+            for (let i = 0; i < inputs.length; i++) {
+                inputs[i].classList.remove('q-bit-ok', 'q-bit-err', 'q-bit-neutral');
+                const val = inputs[i].value;
+                if (val && val === expectedStr[i]) {
+                    inputs[i].classList.add('q-bit-ok');
+                } else {
+                    inputs[i].classList.add('q-bit-err');
+                }
+            }
+        }
+
+        function resetBitInputs(containerId) {
+            const inputs = document.getElementById(containerId).getElementsByTagName('input');
+            for (let i = 0; i < inputs.length; i++) {
+                inputs[i].classList.remove('q-bit-ok', 'q-bit-err');
+                inputs[i].classList.add('q-bit-neutral');
+            }
+        }
+
+        // Kontrol af Opgave 1
+        function checkOpgave1() {
+            const expectedKey = OPGAVE1_DATA
+                .filter(r => r.match === 'match')
+                .map(r => r.key)
+                .join('');
+
+            let tableAllCorrect = true;
+            const wrongRows = [];
+
+            for (let i = 1; i <= 10; i++) {
+                const row = OPGAVE1_DATA[i - 1];
+                const matchEl = document.getElementById(`q1-match-${i}`);
+                const keyEl = document.getElementById(`q1-key-${i}`);
+                const userMatch = matchEl.value;
+                const userKeyBit = keyEl.value;
+
+                const matchOk = userMatch === row.match;
+                let keyOk = false;
+                if (row.match === 'diff') {
+                    keyOk = userKeyBit === 'kasseret';
+                } else if (userKeyBit === row.key) {
+                    keyOk = true;
+                } else if (userKeyBit === row.bobBit || userKeyBit === row.aliceBit) {
+                    keyOk = true;
+                }
+
+                markQ1Field(matchEl, matchOk);
+                markQ1Field(keyEl, keyOk);
+
+                if (!matchOk || !keyOk) {
+                    tableAllCorrect = false;
+                    wrongRows.push(i);
+                }
+            }
+
+            const finalKeyEl = document.getElementById('q1-final-key');
+            const userFinalKey = finalKeyEl.value.replace(/\s/g, '');
+            const keyOk = userFinalKey === expectedKey;
+            finalKeyEl.className = Q1_INPUT_DEFAULT;
+            finalKeyEl.classList.remove('q-field-ok', 'q-field-err');
+            finalKeyEl.classList.add(keyOk ? 'q-field-ok' : 'q-field-err');
+
+            const feedbackBox = document.getElementById('q1-feedback');
+            feedbackBox.classList.remove('hidden');
+
+            if (tableAllCorrect && keyOk) {
+                feedbackBox.className = "p-3 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-700 border border-emerald-500/40";
+                feedbackBox.innerHTML = `🎉 Super flot! Du har svaret korrekt på alle rækker i tabellen, og fundet den rigtige kvantenøgle: <code class='bg-white px-1 py-0.5 rounded text-teal-700 font-mono border border-slate-200'>${expectedKey}</code>.`;
+            } else {
+                feedbackBox.className = "p-3 rounded-lg text-sm font-semibold bg-red-500/20 text-red-700 border border-red-500/40";
+                let errMsg = "❌ Felter markeret med <span class='text-red-600 font-bold'>rød ramme</span> er forkerte. ";
+                if (!tableAllCorrect) {
+                    errMsg += `Tjek række(r): ${wrongRows.join(', ')}. Husk: <em>Basesammenfald</em> handler om om Alice og Bobs <strong>basis</strong> er ens — ikke om bitværdierne matcher. Ved mismatch vælges \"Kasseret\". `;
+                }
+                if (!keyOk) {
+                    errMsg += `Den endelige nøgle skal være de matchende bits i rækkefølge: <code class='font-mono bg-white px-1 border border-slate-200'>${expectedKey}</code> (${expectedKey.length} bits fra række 1, 3, 5, 7, 8 og 10).`;
+                }
+                feedbackBox.innerHTML = errMsg;
+            }
+        }
+
+        // Kontrol af Opgave 2
+        function checkOpgave2() {
+            const ansA = document.getElementById('q2-ans-a').value;
+            const ansB = document.getElementById('q2-ans-b').value;
+            const feedbackBox = document.getElementById('q2-feedback');
+            
+            feedbackBox.classList.remove('hidden');
+
+            if (ansA === 'korrekt' && ansB === 'korrekt') {
+                feedbackBox.className = "p-3 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+                feedbackBox.innerHTML = `
+                    🎉 Rigtigt svaret på begge spørgsmål! <br>
+                    <p class='mt-1 font-normal text-xs text-slate-300'>
+                        <strong>Fysikken bag:</strong> Række 2 svarer til, at Eva målte i forkert basis og derved forstyrrede fotonen — men Bob målte alligevel det samme bit som Alice (50&nbsp;% chance). 
+                        Dette skjuler Eva midlertidigt. Over mange bits vil fejlraten (QBER) dog stige (teoretisk op til <strong>25&nbsp;%</strong>), hvilket afslører hende.
+                    </p>
+                `;
+            } else {
+                feedbackBox.className = "p-3 rounded-lg text-sm font-semibold bg-red-500/20 text-red-300 border border-red-500/40";
+                feedbackBox.innerHTML = "❌ Et eller flere af dine svar til Spørgsmål A og B er forkerte. Læs svarmulighederne grundigt igennem med fokus på kvantebølgefunktionens kollaps.";
+            }
+        }
+
+        // Kontrol af Opgave 4
+        function checkOpgave4() {
+            const n95 = parseInt(document.getElementById('q4-n-95').value, 10);
+            const n99 = parseInt(document.getElementById('q4-n-99').value, 10);
+            const n999 = parseInt(document.getElementById('q4-n-999').value, 10);
+            const ansD = document.getElementById('q4-ans-d').value;
+            const feedbackBox = document.getElementById('q4-feedback');
+
+            const numsOk = n95 === DETECTION_BIT_THRESHOLDS.pct95
+                && n99 === DETECTION_BIT_THRESHOLDS.pct99
+                && n999 === DETECTION_BIT_THRESHOLDS.pct999;
+            const conceptOk = ansD === 'korrekt';
+
+            feedbackBox.classList.remove('hidden');
+
+            if (numsOk && conceptOk) {
+                feedbackBox.className = "p-3 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+                feedbackBox.innerHTML = `
+                    🎉 Korrekt! Ved 95&nbsp;% sikkerhed skal $n \\geq 11$, ved 99&nbsp;% skal $n \\geq 17$, og ved 99,9&nbsp;% skal $n \\geq 25$ sammenlignings-bits (med matchende baser).<br>
+                    <p class='mt-2 font-normal text-xs text-slate-300'>
+                        <strong>Husk:</strong> De bits, I sammenligner offentligt, kan Eva også se. De kan derfor aldrig indgå i den hemmelige kvantenøgle — kun de <em>ikke-offentliggjorte</em> matchende bits kan bruges til OTP.
+                    </p>
+                `;
+                typesetMath();
+            } else {
+                feedbackBox.className = "p-3 rounded-lg text-sm font-semibold bg-red-500/20 text-red-300 border border-red-500/40";
+                let errMsg = "❌ ";
+                if (!numsOk) {
+                    errMsg += "Et eller flere af dine $n$-værdier er forkerte. Løs $\\left(\\frac{3}{4}\\right)^n \\leq 1-p$ for $p = 0{,}95$, $0{,}99$ og $0{,}999$. ";
+                }
+                if (!conceptOk) {
+                    errMsg += "Del D er forkert: tænk på, hvad der er offentligt efter sammenligningen — og hvad Eva dermed kender.";
+                }
+                feedbackBox.innerHTML = errMsg;
+                typesetMath();
+            }
+        }
+
+        // HJÆLPEFUNKTIONER TIL GENERERING AF INTERAKTIVE KOLONNER (OPGAVE 3)
+        function createBitInputs(containerId, count, inputNamePrefix) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.maxLength = 1;
+                input.id = `${inputNamePrefix}-${i}`;
+                input.className = Q3_BIT_BASE;
+                container.appendChild(input);
+            }
+            setupAutoTabAndSync(containerId);
+        }
+
+        function createStaticRowCells(containerId, count) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                const div = document.createElement('div');
+                div.className = "w-6 h-8 bg-slate-900/60 border border-slate-800 rounded flex items-center justify-center text-center text-xs font-mono text-slate-600 static-cell";
+                div.textContent = '-';
+                container.appendChild(div);
+            }
+        }
+
+        // Auto-tab funktioner
+        function setupAutoTabAndSync(containerId) {
+            const container = document.getElementById(containerId);
+            const inputs = container.getElementsByTagName('input');
+            for (let i = 0; i < inputs.length; i++) {
+                inputs[i].addEventListener('input', function() {
+                    // Tillad kun 0 eller 1
+                    this.value = this.value.replace(/[^01]/g, '');
+                    
+                    if (this.value.length >= 1 && i < inputs.length - 1) {
+                        inputs[i + 1].focus();
+                    }
+                    
+                    // Real-time synkronisering af værdier
+                    if (containerId === 'q3-alice-bin-inputs-container') {
+                        syncStaticRow('q3-alice-bin-inputs-container', 'q3-alice-bin-static-row', 'text-pink-400');
+                    } else if (containerId === 'q3-alice-cipher-inputs-container') {
+                        syncStaticRow('q3-alice-cipher-inputs-container', 'q3-bob-cipher-static-row', 'text-yellow-300');
+                    }
+                });
+
+                inputs[i].addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && this.value.length === 0 && i > 0) {
+                        inputs[i - 1].focus();
+                    }
+                });
+            }
+        }
+
+        function syncStaticRow(inputContainerId, staticContainerId, activeColorClass) {
+            const inputs = document.getElementById(inputContainerId).getElementsByTagName('input');
+            const cells = document.getElementById(staticContainerId).getElementsByClassName('static-cell');
+            for (let i = 0; i < 16; i++) {
+                const val = inputs[i].value || '-';
+                cells[i].textContent = val;
+                if (val !== '-') {
+                    cells[i].className = `w-6 h-8 bg-slate-900/60 border border-slate-800 rounded flex items-center justify-center text-center text-xs font-mono font-bold ${activeColorClass} static-cell`;
+                } else {
+                    cells[i].className = "w-6 h-8 bg-slate-900/60 border border-slate-800 rounded flex items-center justify-center text-center text-xs font-mono text-slate-600 static-cell";
+                }
+            }
+        }
+
+        // Sætter statiske værdier i et grid (f.eks. for nøgler)
+        function setStaticKeyRow(containerId, keyStr, colorClass) {
+            const cells = document.getElementById(containerId).getElementsByClassName('static-cell');
+            for (let i = 0; i < 16; i++) {
+                cells[i].textContent = keyStr[i];
+                cells[i].className = `w-6 h-8 bg-slate-900/60 border border-slate-800 rounded flex items-center justify-center text-center text-xs font-mono font-bold ${colorClass} static-cell`;
+            }
+        }
+
+        // INITIALISERER ELLER GENERERER EN NY OPGAVE 3
+        function setupOpgave3() {
+            q3CurrentWord = opgave3Ordliste[Math.floor(Math.random() * opgave3Ordliste.length)];
+            document.getElementById('q3-target-word').textContent = q3CurrentWord;
+
+            const l1 = q3CurrentWord[0];
+            const l2 = q3CurrentWord[1];
+            q3TargetBinary = asciiOpslag[l1] + asciiOpslag[l2];
+
+            // Generer 16-bit nøgle
+            let keyStr = "";
+            for (let i = 0; i < 16; i++) {
+                keyStr += Math.random() < 0.5 ? "0" : "1";
+            }
+            q3GeneratedKey = keyStr;
+
+            // Beregn korrekt krypteret XOR ciphertext
+            let cipherStr = "";
+            for (let i = 0; i < 16; i++) {
+                cipherStr += (q3TargetBinary[i] === q3GeneratedKey[i]) ? "0" : "1";
+            }
+            q3TargetCiphertext = cipherStr;
+
+            // Bogstavoverskrifter hos Alice
+            document.getElementById('q3-alice-header-L1').textContent = `BOGSTAV: '${l1}'`;
+            document.getElementById('q3-alice-header-L2').textContent = `BOGSTAV: '${l2}'`;
+
+            // Opret de interaktive og statiske grids
+            createBitInputs('q3-alice-bin-inputs-container', 16, 'q3-alice-bin');
+            createStaticRowCells('q3-alice-bin-static-row', 16);
+            createStaticRowCells('q3-alice-key-static-row', 16);
+            createBitInputs('q3-alice-cipher-inputs-container', 16, 'q3-alice-cipher');
+            
+            createStaticRowCells('q3-bob-cipher-static-row', 16);
+            createStaticRowCells('q3-bob-key-static-row', 16);
+            createBitInputs('q3-bob-dec-inputs-container', 16, 'q3-bob-dec');
+
+            // Fyld nøgler ind i de statiske visninger
+            setStaticKeyRow('q3-alice-key-static-row', q3GeneratedKey, 'text-teal-300');
+            setStaticKeyRow('q3-bob-key-static-row', q3GeneratedKey, 'text-teal-300');
+
+            // Nulstil tekstfeltet hos Bob
+            document.getElementById('q3-bob-final-text').value = "";
+
+            // Skjul feedback bokse
+            document.getElementById('q3-t1-feedback').classList.add('hidden');
+            document.getElementById('q3-t2-feedback').classList.add('hidden');
+            document.getElementById('q3-t4-feedback').classList.add('hidden');
+            document.getElementById('q3-t5-feedback').classList.add('hidden');
+            document.getElementById('q3-bob-final-text').className = "w-32 bg-white border border-slate-300 rounded p-2 text-center text-sm font-mono text-slate-800 font-bold uppercase tracking-widest focus:outline-none focus:border-blue-500";
+        }
+
+        // TJEK SVAR INTEGRATIONER (INDIVIDUELLE KNAPPER)
+
+        // Trin 1: Alice Binær oversættelse
+        function checkOpgave3Trin1() {
+            let userBin = "";
+            const inputs = document.getElementById('q3-alice-bin-inputs-container').getElementsByTagName('input');
+            for (let i = 0; i < 16; i++) {
+                userBin += inputs[i].value;
+            }
+
+            const feedback = document.getElementById('q3-t1-feedback');
+            feedback.classList.remove('hidden');
+            const allOk = userBin === q3TargetBinary;
+
+            markBitInputs('q3-alice-bin-inputs-container', q3TargetBinary);
+
+            if (allOk) {
+                feedback.className = "text-xs font-semibold text-emerald-600";
+                feedback.innerHTML = "✅ Korrekt binær oversættelse!";
+            } else {
+                const wrongCount = [...userBin].filter((b, i) => b !== q3TargetBinary[i]).length;
+                feedback.className = "text-xs font-semibold text-red-600";
+                feedback.innerHTML = `❌ ${wrongCount} bit(s) markeret med rød ramme er forkerte. Tjek ASCII-tabellen for bogstaverne '${q3CurrentWord[0]}' og '${q3CurrentWord[1]}'.`;
+            }
+        }
+
+        // Trin 2: Alice XOR Kryptering (valideres mod brugerens egen binære streng fra trin 1)
+        function checkOpgave3Trin2() {
+            const inputs = document.getElementById('q3-alice-cipher-inputs-container').getElementsByTagName('input');
+            const feedback = document.getElementById('q3-t2-feedback');
+            feedback.classList.remove('hidden');
+
+            const userAliceBin = getQ3AliceBinary();
+            if (!userAliceBin) {
+                feedback.className = "text-xs font-semibold text-red-600";
+                feedback.innerHTML = "❌ Udfyld først alle 16 bits i trin 1 (Alice binær), før du tjekker XOR.";
+                return;
+            }
+
+            let userCipher = "";
+            for (let i = 0; i < 16; i++) {
+                userCipher += inputs[i].value || ' ';
+            }
+            if (userCipher.includes(' ')) {
+                feedback.className = "text-xs font-semibold text-red-600";
+                feedback.innerHTML = "❌ Udfyld alle 16 ciphertext-bits før du tjekker.";
+                return;
+            }
+
+            const expectedCipher = xorBitStrings(userAliceBin, q3GeneratedKey);
+            const allOk = userCipher === expectedCipher;
+
+            markBitInputs('q3-alice-cipher-inputs-container', expectedCipher);
+
+            if (allOk) {
+                feedback.className = "text-xs font-semibold text-emerald-600";
+                feedback.innerHTML = "✅ Korrekt XOR-kryptering! Signalet er afsendt til Bob.";
+                syncStaticRow('q3-alice-cipher-inputs-container', 'q3-bob-cipher-static-row', 'text-yellow-600');
+            } else {
+                const wrongBits = [];
+                for (let i = 0; i < 16; i++) {
+                    if (inputs[i].value !== expectedCipher[i]) wrongBits.push(i + 1);
+                }
+                feedback.className = "text-xs font-semibold text-red-600";
+                feedback.innerHTML = `❌ Bit-position(er) ${wrongBits.slice(0, 6).join(', ')}${wrongBits.length > 6 ? '...' : ''} er forkerte (rød ramme). XOR beregnes bit-for-bit: ens → 0, forskellige → 1.`;
+            }
+        }
+
+        // Trin 4: Bob XOR Dekryptering (valideres mod ciphertext fra trin 2)
+        function checkOpgave3Trin4() {
+            const inputs = document.getElementById('q3-bob-dec-inputs-container').getElementsByTagName('input');
+            const feedback = document.getElementById('q3-t4-feedback');
+            feedback.classList.remove('hidden');
+
+            const userCipher = getQ3CipherFromAlice();
+            if (!userCipher) {
+                feedback.className = "text-xs font-semibold text-red-600";
+                feedback.innerHTML = "❌ Udfyld og tjek først trin 2 (ciphertext), så Bob kan dekryptere.";
+                return;
+            }
+
+            let userDecrypted = "";
+            for (let i = 0; i < 16; i++) {
+                userDecrypted += inputs[i].value || ' ';
+            }
+            if (userDecrypted.includes(' ')) {
+                feedback.className = "text-xs font-semibold text-red-600";
+                feedback.innerHTML = "❌ Udfyld alle 16 dekrypterede bits før du tjekker.";
+                return;
+            }
+
+            const expectedDecrypted = xorBitStrings(userCipher, q3GeneratedKey);
+            const allOk = userDecrypted === expectedDecrypted;
+
+            markBitInputs('q3-bob-dec-inputs-container', expectedDecrypted);
+
+            if (allOk) {
+                feedback.className = "text-xs font-semibold text-emerald-600";
+                feedback.innerHTML = "✅ Korrekt XOR-dekryptering! Bob har genskabt den binære bitstrøm.";
+            } else {
+                feedback.className = "text-xs font-semibold text-red-600";
+                feedback.innerHTML = "❌ Rød-markerede bits er forkerte. Dekrypter igen: Ciphertext XOR Kvantenøgle = original besked.";
+            }
+        }
+
+        // Trin 5: Bob Bogstavkonvertering
+        function checkOpgave3Trin5() {
+            const userText = document.getElementById('q3-bob-final-text').value.trim().toUpperCase();
+            const feedback = document.getElementById('q3-t5-feedback');
+            const textEl = document.getElementById('q3-bob-final-text');
+            feedback.classList.remove('hidden');
+
+            if (userText === q3CurrentWord) {
+                feedback.className = "p-3 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-700 border border-emerald-500/40 animate-bounce";
+                feedback.innerHTML = `🎉 FLOT ARBEJDE! Bob har modtaget ordet '${q3CurrentWord}' helt fejlfrit. Du har succesfuldt demonstreret One-Time Pad-princippet i praksis!`;
+                textEl.className = "w-32 bg-white border-2 border-emerald-500 rounded p-2 text-center text-sm font-mono text-emerald-700 font-bold uppercase tracking-widest q-field-ok";
+            } else {
+                feedback.className = "p-3 rounded-lg text-sm font-semibold bg-red-500/20 text-red-700 border border-red-500/40";
+                feedback.innerHTML = `❌ Forkert ord (feltet er markeret rødt). Forventet: <strong>${q3CurrentWord}</strong>. Oversæt de dekrypterede 8+8 bits tilbage via ASCII-tabellen.`;
+                textEl.className = "w-32 bg-white border-2 border-red-500 rounded p-2 text-center text-sm font-mono text-red-700 font-bold uppercase tracking-widest q-field-err";
+            }
+        }
+    </script>
+</body>
+</html>
